@@ -1,0 +1,13 @@
+[Unit]
+Description=Zeek Benchmarker Service
+After=network.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=<path>/zeek-benchmarker/venv/bin/python <path>/zeek-benchmarker/benchmark.py
+UMask=0066
+Restart=on-failure
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target
