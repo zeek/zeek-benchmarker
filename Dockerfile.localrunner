@@ -1,0 +1,18 @@
+FROM zeek-benchmarker:latest
+
+# Read and write all data to a RAM disk to reduce variance from the physical disk
+ARG TMPFS_PATH
+WORKDIR ${TMPFS_PATH}
+COPY . /benchmarker
+
+ARG BUILD_FILE_NAME
+ENV LD_LIBRARY_PATH="/benchmarker/${BUILD_FILE_NAME}/lib:${LD_LIBRARY_PATH}"
+ENV PATH="/benchmarker/${BUILD_FILE_NAME}:${PATH}"
+ENV ZEEKPATH="/benchmarker/${BUILD_FILE_NAME}/share/zeek"
+ENV ZEEKSEED="/benchmarker/random.seed"
+ENV ZEEKBIN="/benchmarker/${BUILD_FILE_NAME}/bin/zeek"
+
+# 1. Copy the data file from the disk into a RAM disk to remove read contention from consideration
+# 2. Run the benchmark script, pinned to specific CPUs, but timeout and kill it after 5 minutes just in case
+CMD cp ${DATA_FILE_PATH}/${DATA_FILE_NAME} ${TMPFS_PATH}/${DATA_FILE_NAME} && \
+    timeout --signal=SIGKILL 5m /benchmarker/perf-benchmark --quiet --mode file --seed ${ZEEKSEED} --build ${ZEEKBIN} --data-file ${TMPFS_PATH}/${DATA_FILE_NAME} --cpus ${ZEEKCPUS}
