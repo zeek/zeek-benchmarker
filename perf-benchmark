@@ -9,6 +9,7 @@ SEED_FILE=""
 QUIET=0
 ZEEK_CPU=20
 TCPREPLAY_CPU=21
+PARSEABLE=0
 
 # Path where flamegraph is installed
 FLAMEGRAPH_PATH=""
@@ -46,6 +47,11 @@ Usage: $0 -z [zeek binary path] -d [data file path]
                             defaults to CPUs 20 and 21. See the note below
                             about running on lower-power systems. For example
                             to use CPUs 3 and 4, pass this argument as 3,4.
+    -p, --parseable         Modifies the output for the read mode to be more
+                            easily parsed. This is used by the automated
+			    benchmarker to calculate averages between
+			    multiple runs. It has no effect in any other
+			    modes.
 
     By default or when 'intf' is passed for the mode argument, the output will
     include CPU, memory, etc statistics from Zeek processing all of the data
@@ -119,6 +125,10 @@ while (( "$#" )); do
 	      TCPREPLAY_CPU=${CPU_ARRAY[1]}
 	  fi
 	  shift 2
+	  ;;
+      -p|--parseable)
+	  PARSEABLE=1
+	  shift 1
 	  ;;
   esac
 done
@@ -217,7 +227,12 @@ elif [ "${MODE}" = "file" ]; then
     TIME_PID=$!
     ZEEK_PID=$(ps -ef | awk -v timepid="${TIME_PID}" '{ if ($3 == timepid) { print $2 } }')
     renice -20 -p $ZEEK_PID > /dev/null
-    awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " bytes"}' $TIME_FILE
+
+    if [ ${PARSEABLE} -eq 0 ]; then
+	awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " bytes"}' $TIME_FILE
+    else
+	cat $TIME_FILE
+    fi
 
     rm $TIME_FILE
 

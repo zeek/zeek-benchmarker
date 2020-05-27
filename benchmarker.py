@@ -10,11 +10,16 @@ import traceback
 import docker
 from flask import Flask, request
 
-# These two values need to be filled in before runtime will work. Note that the HMAC_KEY
+# These values need to be filled in before runtime will work. Note that the HMAC_KEY
 # *must* be prefixed with 'b' or generating the digest to test with won't work.
 HMAC_KEY = b''
 DATA_FILE = ''
 HOST_IP=''
+
+# This is the number of loops that the zeek benchmarker will run against the data file
+# in order to average out noise in the process. A value of 3 is a reasonable balance
+# for overall runtime for each request.
+RUN_COUNT = 3
 
 app = Flask(__name__)
 app.config['CPU_SET'] = [22, 23]
@@ -133,38 +138,44 @@ def zeek():
                         app.logger.error(be)
                         raise RuntimeError('Failed to build runner image')
 
-                # Run benchmark
-                try:
-                        # The docker API expects the seccomp to be the actual JSON from the file
-                        # so trying to pass the filename fails (that works on the command-line).
-                        # Load the json into a variable.
-                        seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
+                total_time = 0
+                total_mem = 0
 
-                        log_output = docker_client.containers.run(
-                                image=normalized_branch,
-                                remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
-                                security_opt=['seccomp={:s}'.format(seccomp)],
-                                environment={
-                                        'BUILD_FILE_NAME': filename,
-                                        'DATA_FILE_PATH': data_file_path,
-                                        'DATA_FILE_NAME': data_file_name,
-                                        'TMPFS_PATH': tmpfs_path,
-                                        'DATA_FILE': os.path.join('/mnt/data/tmpfs', data_file_name),
-                                        'ZEEKCPUS': '{:d},{:d}'.format(
-                                                app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
-                                volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
-                                tmpfs={tmpfs_path: ''},
-                                stderr=True)
-                except docker.errors.ContainerError as ce:
-                        app.logger.error(ce)
-                        raise RuntimeError('Runner failed')
+                for i in range(RUN_COUNT):
+                        # Run benchmark
+                        try:
+                                # The docker API expects the seccomp to be the actual JSON from the file
+                                # so trying to pass the filename fails (that works on the command-line).
+                                # Load the json into a variable.
+                                seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
 
-                # Destroy the container and image
-                try:
-                        docker_client.images.remove(image=normalized_branch, force=True)
-                except docker.errors.APIError as ae:
-                        app.logger.error(ae)
-                        raise RuntimeError('Failed to destroy runner image')
+                                log_output = docker_client.containers.run(
+                                        image=normalized_branch,
+                                        remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
+                                        security_opt=['seccomp={:s}'.format(seccomp)],
+                                        environment={
+                                                'BUILD_FILE_NAME': filename,
+                                                'DATA_FILE_PATH': data_file_path,
+                                                'DATA_FILE_NAME': data_file_name,
+                                                'TMPFS_PATH': tmpfs_path,
+                                                'DATA_FILE': os.path.join('/mnt/data/tmpfs', data_file_name),
+                                                'ZEEKCPUS': '{:d},{:d}'.format(
+                                                        app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
+                                        volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
+                                        tmpfs={tmpfs_path: ''},
+                                        stderr=True)
+
+                                # Output from the benchmark script is a time in seconds followed by a memory
+                                # value in bytes
+                                [time_elapsed, max_mem] = log_output.split()
+                                total_time += float(time_elapsed)
+                                total_mem += int(max_mem)
+                        except docker.errors.ContainerError as ce:
+                                app.logger.error(ce)
+                                raise RuntimeError('Runner failed')
+
+                log_output = 'Averaged over {:d} passes:\nTime Spent: {:.3f} seconds\nMax memory usage: {:d} bytes'.format(
+                        RUN_COUNT, total_time / float(RUN_COUNT), int(total_mem / RUN_COUNT))
 
         except RuntimeError as re:
                 app.logger.error(traceback.format_exc())
@@ -175,6 +186,13 @@ def zeek():
                 result = ('Failure occurred', 500)
         else:
                 result = (log_output, 200)
+
+        # Destroy the container and image
+        try:
+                docker_client.images.remove(image=normalized_branch, force=True)
+        except docker.errors.APIError as ae:
+                app.logger.error(ae)
+                result = ('Failed to destroy runner image', 500)
 
         if os.path.exists(work_path):
                 shutil.rmtree(work_path)

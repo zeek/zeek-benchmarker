@@ -15,4 +15,4 @@ ENV ZEEKBIN="/benchmarker/zeek/install/bin/zeek"
 # 2. Copy the data file from the disk into a RAM disk to remove read contention from consideration
 # 3. Run the benchmark script, pinned to specific CPUs, but timeout and kill it after 5 minutes just in case
 CMD tar -xzf /benchmarker/${BUILD_FILE_NAME} -C /benchmarker && cp ${DATA_FILE_PATH}/${DATA_FILE_NAME} ${TMPFS_PATH}/${DATA_FILE_NAME} && \
-    timeout --signal=SIGKILL 5m /benchmarker/perf-benchmark --quiet --mode file --seed ${ZEEKSEED} --build ${ZEEKBIN} --data-file ${TMPFS_PATH}/${DATA_FILE_NAME} --cpus ${ZEEKCPUS}
+    timeout --signal=SIGKILL 5m /benchmarker/perf-benchmark --quiet --parseable --mode file --seed ${ZEEKSEED} --build ${ZEEKBIN} --data-file ${TMPFS_PATH}/${DATA_FILE_NAME} --cpus ${ZEEKCPUS}
