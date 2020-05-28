@@ -104,7 +104,7 @@ def zeek():
                 os.mkdir(work_path, mode=0o700)
 
                 if remote_build:
-                        dockerfile = 'Dockerfile.runner'
+                        dockerfile = 'Dockerfile.zeek-runner'
                         file_path = os.path.join(work_path, filename)
                         r = requests.get(build_url, allow_redirects=True)
                         if not r:
@@ -120,7 +120,7 @@ def zeek():
                         if ret:
                                 raise RuntimeError('Failed to validate checksum of file')
                 else:
-                        dockerfile = 'Dockerfile.localrunner'
+                        dockerfile = 'Dockerfile.zeek-localrunner'
                         file_path = build_url[7:]
                         shutil.copytree(file_path, os.path.join(work_path, filename))
 
