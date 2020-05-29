@@ -14,7 +14,6 @@ from flask import Flask, request
 # *must* be prefixed with 'b' or generating the digest to test with won't work.
 HMAC_KEY = b''
 DATA_FILE = ''
-HOST_IP=''
 
 # This is the number of loops that the zeek benchmarker will run against the data file
 # in order to average out noise in the process. A value of 3 is a reasonable balance
@@ -38,9 +37,9 @@ def verify_hmac(request_path, timestamp, request_digest):
 
         return True
 
-@app.route('/zeek', methods=['POST'])
-def zeek():
+def parse_request(req):
 
+        req_vals = {}
         branch = request.args.get('branch', '')
         if not branch:
                 return 'Branch argument required', 400
@@ -66,11 +65,11 @@ def zeek():
                 if not verify_hmac(request.path, hmac_timestamp, hmac_header):
                         return 'HMAC validation failed', 403
 
-                build_hash = request.args.get('build_hash', '')
-                if not build_hash:
+                req_vals['build_hash'] = request.args.get('build_hash', '')
+                if not req_vals['build_hash']:
                         return 'Build hash argument required', 400
 
-        elif build_url.startswith('file://') and request.remote_addr == HOST_IP:
+        elif build_url.startswith('file://') and request.remote_addr == '127.0.0.1':
                 remote_build = False
         else:
                 return 'Invalid build URL', 400
@@ -91,27 +90,40 @@ def zeek():
                 normalized_branch += '-{:d}-{:d}'.format(int(hmac_timestamp), int(time.time()))
         else:
                 normalized_branch += '-local-{:d}'.format(int(time.time()))
+
+        req_vals['build_url'] = build_url
+        req_vals['remote'] = remote_build
+        req_vals['normalized_branch'] = normalized_branch
+        return req_vals
+
+@app.route('/zeek', methods=['POST'])
+def zeek():
+
+        req_vals = parse_request(request)
+        if not isinstance(req_vals, dict):
+                return req_vals
+
         base_path = os.path.dirname(os.path.abspath(__file__))
-        work_path = os.path.join(base_path, normalized_branch)
+        work_path = os.path.join(base_path, req_vals['normalized_branch'])
 
         data_file_path = os.path.dirname(DATA_FILE)
         data_file_name = os.path.basename(DATA_FILE)
         tmpfs_path = '/mnt/data/tmpfs'
-        filename = build_url.rsplit('/', 1)[1]
+        filename = req_vals['build_url'].rsplit('/', 1)[1]
 
         result = None
         try:
                 os.mkdir(work_path, mode=0o700)
 
-                if remote_build:
+                if req_vals['remote']:
                         dockerfile = 'Dockerfile.zeek-runner'
                         file_path = os.path.join(work_path, filename)
-                        r = requests.get(build_url, allow_redirects=True)
+                        r = requests.get(req_vals['build_url'], allow_redirects=True)
                         if not r:
                                 raise RuntimeError('Failed to download build file')
 
                         open(file_path, 'wb').write(r.content)
-                        open('{:s}.md5'.format(file_path), 'w').write('{:s} {:s}'.format(build_hash, file_path))
+                        open('{:s}.md5'.format(file_path), 'w').write('{:s} {:s}'.format(req_vals['build_hash'], file_path))
 
                         # Validate checksum of file before untarring it. There is a module in python
                         # to do this, but I'm not going to read the whole file into memory to do it.
@@ -121,18 +133,18 @@ def zeek():
                                 raise RuntimeError('Failed to validate checksum of file')
                 else:
                         dockerfile = 'Dockerfile.zeek-localrunner'
-                        file_path = build_url[7:]
+                        file_path = req_vals['build_url'][7:]
                         shutil.copytree(file_path, os.path.join(work_path, filename))
 
                 # Build new docker image from the base image, tagged with the normalized branch name
                 # so that we can use/delete it more easily.
                 try:
-                        docker_client.images.build(tag=normalized_branch, path=work_path, rm=True,
+                        docker_client.images.build(tag=req_vals['normalized_branch'], path=work_path, rm=True,
                                                    dockerfile=os.path.join(base_path, dockerfile),
                                                    container_limits={'cpusetcpus': '{:d},{:d}'.format(
                                                            app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
                                                    buildargs={'TMPFS_PATH': tmpfs_path,
-                                                              'BUILD_FILE_NAME': filename,})
+                                                              'BUILD_FILE_NAME': filename})
 
                 except docker.errors.BuildError as be:
                         app.logger.error(be)
@@ -150,7 +162,7 @@ def zeek():
                                 seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
 
                                 log_output = docker_client.containers.run(
-                                        image=normalized_branch,
+                                        image=req_vals['normalized_branch'],
                                         remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
                                         security_opt=['seccomp={:s}'.format(seccomp)],
                                         environment={
@@ -158,7 +170,6 @@ def zeek():
                                                 'DATA_FILE_PATH': data_file_path,
                                                 'DATA_FILE_NAME': data_file_name,
                                                 'TMPFS_PATH': tmpfs_path,
-                                                'DATA_FILE': os.path.join('/mnt/data/tmpfs', data_file_name),
                                                 'ZEEKCPUS': '{:d},{:d}'.format(
                                                         app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
                                         volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
@@ -189,7 +200,7 @@ def zeek():
 
         # Destroy the container and image
         try:
-                docker_client.images.remove(image=normalized_branch, force=True)
+                docker_client.images.remove(image=req_vals['normalized_branch'], force=True)
         except docker.errors.APIError as ae:
                 app.logger.error(ae)
                 result = ('Failed to destroy runner image', 500)
@@ -200,4 +211,4 @@ def zeek():
         return result
 
 if __name__ == '__main__':
-        app.run(host=HOST_IP, port=12345, threaded=False, ssl_context="adhoc")
+        app.run(host='127.0.0.1', port=8080, threaded=False)

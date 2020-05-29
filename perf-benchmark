@@ -17,7 +17,7 @@ FLAMEGRAPH_PREFIX="benchmark"
 
 usage() {
     usage="\
-Usage: $0 -z [zeek binary path] -d [data file path]
+Usage: $0 -b [zeek binary path] -d [data file path]
 
   Options:
     -b, --build PATH        The path to a Zeek binary to benchmark
