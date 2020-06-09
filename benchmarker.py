@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 import traceback
+from datetime import datetime, timedelta
 
 import docker
 from flask import Flask, request
@@ -25,11 +26,11 @@ app.config['CPU_SET'] = [22, 23]
 
 docker_client = docker.from_env()
 
-def verify_hmac(request_path, timestamp, request_digest):
+def verify_hmac(request_path, timestamp, request_digest, build_hash):
 
         # Generate a new version of the digest on this side using the same information that the
         # caller use to generate their digest, and then compare the two for validity.
-        hmac_msg = '{:s}-{:d}\n'.format(request_path, timestamp)
+        hmac_msg = '{:s}-{:d}-{:s}\n'.format(request_path, timestamp, build_hash)
         local_digest = hmac.new(HMAC_KEY, hmac_msg.encode('utf-8'), 'sha256').hexdigest()
         if not hmac.compare_digest(local_digest, request_digest):
                 app.logger.error("HMAC digest from request ({:s}) didn't match local digest ({:s})".format(request_digest, local_digest))
@@ -62,12 +63,21 @@ def parse_request(req):
                 if not hmac_timestamp:
                         return 'HMAC timestamp missing from request', 403
 
-                if not verify_hmac(request.path, hmac_timestamp, hmac_header):
-                        return 'HMAC validation failed', 403
+                # Double check that the timestamp is within the last 15 minutes UTC to avoid someone
+                # trying to reuse it.
+                ts = datetime.utcfromtimestamp(hmac_timestamp)
+                utc = datetime.utcnow()
+                delta = utc - ts
+
+                if delta > timedelta(minutes=15):
+                        return 'HMAC timestamp is outside of the valid range', 403
 
                 req_vals['build_hash'] = request.args.get('build_hash', '')
                 if not req_vals['build_hash']:
                         return 'Build hash argument required', 400
+
+                if not verify_hmac(request.path, hmac_timestamp, hmac_header, req_vals['build_hash']):
+                        return 'HMAC validation failed', 403
 
         elif build_url.startswith('file://') and request.remote_addr == '127.0.0.1':
                 remote_build = False
@@ -123,14 +133,14 @@ def zeek():
                                 raise RuntimeError('Failed to download build file')
 
                         open(file_path, 'wb').write(r.content)
-                        open('{:s}.md5'.format(file_path), 'w').write('{:s} {:s}'.format(req_vals['build_hash'], file_path))
+                        open('{:s}.sha256'.format(file_path), 'w').write('{:s} {:s}'.format(req_vals['build_hash'], file_path))
 
                         # Validate checksum of file before untarring it. There is a module in python
                         # to do this, but I'm not going to read the whole file into memory to do it.
-                        ret = subprocess.call(['md5sum', '-c', '{:s}.md5'.format(file_path)],
+                        ret = subprocess.call(['sha256sum', '-c', '{:s}.sha256'.format(file_path)],
                                               stdout=subprocess.DEVNULL)
                         if ret:
-                                raise RuntimeError('Failed to validate checksum of file')
+                                raise RuntimeError('Failed to validate build file checksum')
                 else:
                         dockerfile = 'Dockerfile.zeek-localrunner'
                         file_path = req_vals['build_url'][7:]
