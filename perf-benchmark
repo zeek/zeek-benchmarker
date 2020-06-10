@@ -130,6 +130,13 @@ while (( "$#" )); do
 	  PARSEABLE=1
 	  shift 1
 	  ;;
+      -h|--help)
+	  usage
+	  ;;
+      *)
+          echo "Invalid option '$1'.  Try $0 --help to see available options."
+          exit 1
+          ;;
   esac
 done
 
