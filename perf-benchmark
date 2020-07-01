@@ -217,7 +217,7 @@ if [ "${MODE}" = "intf" ]; then
     wait $TIME_PID
     wait $PERF_PID
 
-    echo "Maximum memory usage (max_rss): $(head -n 1 ${TIME_FILE}) bytes"
+    echo "Maximum memory usage (max_rss): $(head -n 1 ${TIME_FILE}) KB"
     echo "Average CPU usage: ${CPU_USAGE}%"
 
     rm $TIME_FILE
@@ -236,7 +236,7 @@ elif [ "${MODE}" = "file" ]; then
     renice -20 -p $ZEEK_PID > /dev/null
 
     if [ ${PARSEABLE} -eq 0 ]; then
-	awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " bytes"}' $TIME_FILE
+	awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " KB"}' $TIME_FILE
     else
 	cat $TIME_FILE
     fi
