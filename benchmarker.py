@@ -95,7 +95,8 @@ def parse_request(req):
 
         # Normalize the branch name to remove any non-alphanumeric characters so it's
         # safe to use as part of a path name. This is way overkill, but it's safer.
-        normalized_branch = ''.join(x for x in branch if x.isalnum())
+        # Docker requires it to be all lowercase as well.
+        normalized_branch = ''.join(x for x in branch if x.isalnum()).lower()
         if remote_build:
                 normalized_branch += '-{:d}-{:d}'.format(int(hmac_timestamp), int(time.time()))
         else:
