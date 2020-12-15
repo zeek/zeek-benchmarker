@@ -5,7 +5,7 @@ ARG TMPFS_PATH
 WORKDIR ${TMPFS_PATH}
 COPY . /benchmarker
 
-ENV LD_LIBRARY_PATH="/benchmarker/zeek/install/lib:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/benchmarker/zeek/install/lib:/benchmarker/zeek/install/lib64:${LD_LIBRARY_PATH}"
 ENV PATH="/benchmarker/zeek/install/bin:${PATH}"
 ENV ZEEKPATH="/benchmarker/zeek/install/share/zeek"
 ENV ZEEKSEED="/benchmarker/random.seed"
