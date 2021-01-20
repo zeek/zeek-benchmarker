@@ -15,6 +15,9 @@ PARSEABLE=0
 FLAMEGRAPH_PATH=""
 FLAMEGRAPH_PREFIX="benchmark"
 
+# Path to perf
+PERF_BINARY=/bin/perf
+
 usage() {
     usage="\
 Usage: $0 -b [zeek binary path] -d [data file path]
@@ -168,7 +171,7 @@ PRELOAD_LIBS=""
 
 ZEEK_ARGS=""
 if [ "${MODE}" != "file" ]; then
-    ZEEK_ARGS="-i ${INTERFACE}"
+    ZEEK_ARGS="-i af_packet::${INTERFACE}"
 fi
 
 if [ -n "${SEED_FILE}" ]; then
@@ -199,7 +202,7 @@ if [ "${MODE}" = "intf" ]; then
     fi
 
     # Start perf stat on the zeek process
-    perf stat -p $ZEEK_PID &
+    ${PERF_BINARY} stat -p $ZEEK_PID &
     PERF_PID=$!
 
     # Start replaying the data
@@ -256,7 +259,7 @@ elif [ "${MODE}" = "flamegraph" ]; then
     # Start zeek under perf record, then sleep for a few seconds to let it actually start up. For runs with
     # shorter amounts of data or with slower traffic, you can add '-c 499' here to get finer-grained results.
     # With big data sets, it just results in the graph getting blown out by waits in the IO loop.
-    LD_PRELOAD=${PRELOAD_LIBS} perf record -g -o $PERF_RECORD_FILE -- $ZEEK_BUILD $ZEEK_ARGS &
+    LD_PRELOAD=${PRELOAD_LIBS} ${PERF_BINARY} record -g -o $PERF_RECORD_FILE -- $ZEEK_BUILD $ZEEK_ARGS &
     PERF_PID=$!
 
     sleep 5
@@ -281,7 +284,7 @@ elif [ "${MODE}" = "flamegraph" ]; then
     if [ ${QUIET} -eq 0 ]; then
 	echo "####### Collapsing perf stack data #######"
     fi
-    perf script -i $PERF_RECORD_FILE | ${FLAMEGRAPH_PATH}/stackcollapse-perf.pl > $PERF_COLLAPSED_FILE
+    ${PERF_BINARY} script -i $PERF_RECORD_FILE | c++filt | ${FLAMEGRAPH_PATH}/stackcollapse-perf.pl > $PERF_COLLAPSED_FILE
 
     if [ ${QUIET} -eq 0 ]; then
 	echo "####### Building normal flamegraph, writing to ${FLAMEGRAPH_PREFIX}.svg #######"
