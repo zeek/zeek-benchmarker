@@ -1,0 +1,14 @@
+FROM centos:8
+
+RUN dnf -y install epel-release dnf-plugins-core \
+  && dnf clean all && rm -rf /var/cache/dnf
+
+RUN dnf config-manager --set-enabled PowerTools
+
+RUN dnf -y update && dnf -y install \
+    openssl \
+    python3 \
+  && dnf clean all && rm -rf /var/cache/dnf
+
+RUN mkdir /benchmarker
+WORKDIR /benchmarker

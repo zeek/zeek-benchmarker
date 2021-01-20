@@ -1,0 +1,17 @@
+FROM zeek-broker-benchmarker:latest
+
+# Read and write all data to a RAM disk to reduce variance from the physical disk
+ARG TMPFS_PATH
+WORKDIR ${TMPFS_PATH}
+COPY . /benchmarker
+
+ARG BUILD_FILE_NAME
+ENV LD_LIBRARY_PATH="/benchmarker/${BUILD_FILE_NAME}/lib:/benchmarker/${BUILD_FILE_NAME}/lib64:${LD_LIBRARY_PATH}"
+ENV PATH="/benchmarker/${BUILD_FILE_NAME}/bin:${PATH}"
+
+# 1. Copy the data file from the disk into a RAM disk to remove read contention from consideration
+# 2. cd into that directory, since broker-cluster-benchmark requires it.
+# 3. Run the benchmark using the 
+CMD cp -r ${DATA_FILE_PATH} ${TMPFS_PATH} && \
+    cd ${TMPFS_PATH}/$(basename ${DATA_FILE_PATH}) && \
+    timeout --signal=SIGKILL 30s broker-cluster-benchmark -c ${DATA_FILE_NAME}
