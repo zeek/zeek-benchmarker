@@ -58,7 +58,7 @@ def parse_request(req):
         if build_url.startswith('https://api.cirrus-ci.com/v1/artifact/build'):
                 remote_build = True
 
-                # Remote requests are required to be signed with HMAC and have an md5 hash
+                # Remote requests are required to be signed with HMAC and have an sha256 hash
                 # of the build file passed with them.
                 hmac_header = request.headers.get('Zeek-HMAC', None)
                 if not hmac_header:
@@ -254,11 +254,11 @@ def broker():
                                 raise RuntimeError('Failed to download build file')
 
                         open(file_path, 'wb').write(r.content)
-                        open('{:s}.md5'.format(file_path), 'w').write('{:s} {:s}'.format(req_vals['build_hash'], file_path))
+                        open('{:s}.sha256'.format(file_path), 'w').write('{:s} {:s}'.format(req_vals['build_hash'], file_path))
 
                         # Validate checksum of file before untarring it. There is a module in python
                         # to do this, but I'm not going to read the whole file into memory to do it.
-                        ret = subprocess.call(['md5sum', '-c', '{:s}.md5'.format(file_path)],
+                        ret = subprocess.call(['sha256sum', '-c', '{:s}.sha256'.format(file_path)],
                                               stdout=subprocess.DEVNULL)
                         if ret:
                                 raise RuntimeError('Failed to validate checksum of file')
