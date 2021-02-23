@@ -6,7 +6,7 @@ WORKDIR ${TMPFS_PATH}
 COPY . /benchmarker
 
 ARG BUILD_FILE_NAME
-ENV LD_LIBRARY_PATH="/benchmarker/${BUILD_FILE_NAME}/lib:/benchmarker/zeek/install/lib64:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/benchmarker/${BUILD_FILE_NAME}/lib:/benchmarker/${BUILD_FILE_NAME}/lib64:${LD_LIBRARY_PATH}"
 ENV PATH="/benchmarker/${BUILD_FILE_NAME}:${PATH}"
 ENV ZEEKPATH="/benchmarker/${BUILD_FILE_NAME}/share/zeek"
 ENV ZEEKSEED="/benchmarker/random.seed"
