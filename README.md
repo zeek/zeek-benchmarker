@@ -30,7 +30,7 @@ This endpoint is used to benchmark builds of the primary Zeek repo based on PRs 
 - Header value `Zeek-HMAC-Timestamp`: This is the timestamp used in the above computation.
 - Argument `branch`: The full branch name being tested. This will be checked by `git` to ensure that it is a valid branch name.
 - Argument `build`: The full URL to the build being tested. By default the script checks to ensure that the URL is coming from the Cirrus infrastructure.
-- Argument `build_hash`: An md5 hash of the build file.
+- Argument `build_hash`: A sha256 hash of the build file.
 
 #### Output
 
