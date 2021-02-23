@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 import traceback
+import sqlite3
+import re
 from datetime import datetime, timedelta
 
 import docker
@@ -20,6 +22,10 @@ DATA_FILE = ''
 
 # Path to a cluster-config data file used by the broker endpoint.
 BROKER_CONFIG_FILE = ''
+
+# Path to an sqlite database file that stores the metrics once they're completed for
+# viewing on grafana, etc.
+DATABASE_FILE = ''
 
 # This is the number of loops that the zeek benchmarker will run against the data file
 # in order to average out noise in the process. A value of 3 is a reasonable balance
@@ -201,8 +207,22 @@ def zeek():
                                 app.logger.error(cont_err)
                                 raise RuntimeError('Runner failed')
 
+                avg_time = total_time / float(RUN_COUNT)
+                avg_mem = int(total_mem / float(RUN_COUNT))
                 log_output = 'Averaged over {:d} passes:\nTime Spent: {:.3f} seconds\nMax memory usage: {:d} bytes'.format(
-                        RUN_COUNT, total_time / float(RUN_COUNT), int(total_mem / RUN_COUNT))
+                        RUN_COUNT, avg_time, avg_mem)
+
+                db_conn = sqlite3.connect(DATABASE_FILE)
+                c = db_conn.cursor()
+                c.execute('''CREATE TABLE IF NOT EXISTS "zeek" (
+                          "id" integer primary key autoincrement not null,
+                          "stamp" datetime default (datetime('now', 'localtime')),
+                          "time_spent" float not null,
+                          "memory_used" float not null)''')
+
+                c.execute('insert into zeek (time_spent, memory_used) values (?, ?)', [avg_time, avg_mem])
+                db_conn.commit()
+                db_conn.close()
 
         except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
@@ -309,6 +329,45 @@ def broker():
                         except docker.errors.ContainerError as cont_err:
                                 app.logger.error(cont_err)
                                 raise RuntimeError('Runner failed')
+
+                log_data = {}
+                p = re.compile('zeek-recording-(.*?) \((.*?)\): (.*)s')
+                for line in iter(log_output.splitlines()):
+                        if line.startswith('system'):
+                                parts = line.split(':')
+                                log_data['system'] = float(parts[1].strip()[:-1])
+                        else:
+                                m = p.match(line)
+                                if m:
+                                        log_data['{:s}_{:s}'.format(m.group(1), m.group(2))] = float(m.group(3))
+
+                db_conn = sqlite3.connect(DATABASE_FILE)
+                c = db_conn.cursor()
+                c.execute('''CREATE TABLE IF NOT EXISTS "broker" (
+                                 "stamp" datetime primary key default (datetime('now', 'localtime')),
+                                 "logger_sending" float not null,
+                                 "logger_receiving" float not null,
+                                 "manager_sending" float not null,
+                                 "manager_receiving" float not null,
+                                 "proxy_sending" float not null,
+                                 "proxy_receiving" float not null,
+                                 "worker_sending" float not null,
+                                 "worker_receiving" float not null,
+                                 "system" float not null);''')
+
+                c.execute('''insert into broker (logger_sending, logger_receiving,
+                                                 manager_sending, manager_receiving,
+                                                 proxy_sending, proxy_receiving,
+                                                 worker_sending, worker_receiving,
+                                                 system) values (?,?,?,?,?,?,?,?,?)''',
+                          [log_data['logger_sending'], log_data['logger_receiving'],
+                           log_data['manager_sending'], log_data['manager_receiving'],
+                           log_data['proxy_sending'], log_data['proxy_receiving'],
+                           log_data['worker_sending'], log_data['worker_receiving'],
+                           log_data['system']])
+
+                db_conn.commit()
+                db_conn.close()
 
         except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
