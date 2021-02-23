@@ -162,8 +162,8 @@ def zeek():
                                                    buildargs={'TMPFS_PATH': tmpfs_path,
                                                               'BUILD_FILE_NAME': filename})
 
-                except docker.errors.BuildError as be:
-                        app.logger.error(be)
+                except docker.errors.BuildError as build_err:
+                        app.logger.error(build_err)
                         raise RuntimeError('Failed to build runner image')
 
                 total_time = 0
@@ -197,16 +197,16 @@ def zeek():
                                 [time_elapsed, max_mem] = log_output.split()
                                 total_time += float(time_elapsed)
                                 total_mem += int(max_mem)
-                        except docker.errors.ContainerError as ce:
-                                app.logger.error(ce)
+                        except docker.errors.ContainerError as cont_err:
+                                app.logger.error(cont_err)
                                 raise RuntimeError('Runner failed')
 
                 log_output = 'Averaged over {:d} passes:\nTime Spent: {:.3f} seconds\nMax memory usage: {:d} bytes'.format(
                         RUN_COUNT, total_time / float(RUN_COUNT), int(total_mem / RUN_COUNT))
 
-        except RuntimeError as re:
+        except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
-                result = (str(re), 500)
+                result = (str(rt_err), 500)
         except:
                 # log any other exceptions, but eat the string from them
                 app.logger.error(traceback.format_exc())
@@ -217,8 +217,8 @@ def zeek():
         # Destroy the container and image
         try:
                 docker_client.images.remove(image=req_vals['normalized_branch'], force=True)
-        except docker.errors.APIError as ae:
-                app.logger.error(ae)
+        except docker.errors.APIError as api_err:
+                app.logger.error(api_err)
                 result = ('Failed to destroy runner image', 500)
 
         if os.path.exists(work_path):
@@ -277,8 +277,8 @@ def broker():
                                                    buildargs={'TMPFS_PATH': tmpfs_path,
                                                               'BUILD_FILE_NAME': filename})
 
-                except docker.errors.BuildError as be:
-                        app.logger.error(be)
+                except docker.errors.BuildError as build_err:
+                        app.logger.error(build_err)
                         raise RuntimeError('Failed to build runner image')
 
                 log_output = ''
@@ -306,13 +306,13 @@ def broker():
                                         tmpfs={tmpfs_path: ''},
                                         stderr=True).decode('utf-8','ignore')
 
-                        except docker.errors.ContainerError as ce:
-                                app.logger.error(ce)
+                        except docker.errors.ContainerError as cont_err:
+                                app.logger.error(cont_err)
                                 raise RuntimeError('Runner failed')
 
-        except RuntimeError as re:
+        except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
-                result = (str(re), 500)
+                result = (str(rt_err), 500)
         except:
                 # log any other exceptions, but eat the string from them
                 app.logger.error(traceback.format_exc())
@@ -323,8 +323,8 @@ def broker():
         # Destroy the container and image
         try:
                 docker_client.images.remove(image=req_vals['normalized_branch'], force=True)
-        except docker.errors.APIError as ae:
-                app.logger.error(ae)
+        except docker.errors.APIError as api_err:
+                app.logger.error(api_err)
                 result = ('Failed to destroy runner image', 500)
 
         if os.path.exists(work_path):
