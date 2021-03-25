@@ -156,7 +156,10 @@ def zeek():
                 else:
                         dockerfile = 'Dockerfile.zeek-localrunner'
                         file_path = req_vals['build_url'][7:]
-                        shutil.copytree(file_path, os.path.join(work_path, filename))
+                        ret = subprocess.call(['cp', '-r', file_path, os.path.join(work_path, filename)],
+                                              stdout=subprocess.DEVNULL)
+                        if ret:
+                                raise RuntimeError('Failed to copy local build directory')
 
                 # Build new docker image from the base image, tagged with the normalized branch name
                 # so that we can use/delete it more easily.
@@ -212,17 +215,18 @@ def zeek():
                 log_output = 'Averaged over {:d} passes:\nTime Spent: {:.3f} seconds\nMax memory usage: {:d} bytes'.format(
                         RUN_COUNT, avg_time, avg_mem)
 
-                db_conn = sqlite3.connect(DATABASE_FILE)
-                c = db_conn.cursor()
-                c.execute('''CREATE TABLE IF NOT EXISTS "zeek" (
-                          "id" integer primary key autoincrement not null,
-                          "stamp" datetime default (datetime('now', 'localtime')),
-                          "time_spent" float not null,
-                          "memory_used" float not null)''')
+                if req_vals['remote']:
+                        db_conn = sqlite3.connect(DATABASE_FILE)
+                        c = db_conn.cursor()
+                        c.execute('''CREATE TABLE IF NOT EXISTS "zeek" (
+                                  "id" integer primary key autoincrement not null,
+                                  "stamp" datetime default (datetime('now', 'localtime')),
+                                  "time_spent" float not null,
+                                  "memory_used" float not null)''')
 
-                c.execute('insert into zeek (time_spent, memory_used) values (?, ?)', [avg_time, avg_mem])
-                db_conn.commit()
-                db_conn.close()
+                        c.execute('insert into zeek (time_spent, memory_used) values (?, ?)', [avg_time, avg_mem])
+                        db_conn.commit()
+                        db_conn.close()
 
         except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
@@ -303,32 +307,30 @@ def broker():
 
                 log_output = ''
 
-                if True:
-#                for i in range(RUN_COUNT):
-                        # Run benchmark
-                        try:
-                                # The docker API expects the seccomp to be the actual JSON from the file
-                                # so trying to pass the filename fails (that works on the command-line).
-                                # Load the json into a variable.
-                                seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
+                # Run benchmark
+                try:
+                        # The docker API expects the seccomp to be the actual JSON from the file
+                        # so trying to pass the filename fails (that works on the command-line).
+                        # Load the json into a variable.
+                        seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
 
-                                log_output += docker_client.containers.run(
-                                        image=req_vals['normalized_branch'],
-                                        remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
-                                        security_opt=['seccomp={:s}'.format(seccomp)],
-                                        environment={
-                                                'BUILD_FILE_NAME': filename,
-                                                'DATA_FILE_PATH': data_file_path,
-                                                'DATA_FILE_DIR' : data_file_dir,
-                                                'DATA_FILE_NAME': data_file_name,
-                                                'TMPFS_PATH': tmpfs_path},
-                                        volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
-                                        tmpfs={tmpfs_path: ''},
-                                        stderr=True).decode('utf-8','ignore')
+                        log_output += docker_client.containers.run(
+                                image=req_vals['normalized_branch'],
+                                remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
+                                security_opt=['seccomp={:s}'.format(seccomp)],
+                                environment={
+                                        'BUILD_FILE_NAME': filename,
+                                        'DATA_FILE_PATH': data_file_path,
+                                        'DATA_FILE_DIR' : data_file_dir,
+                                        'DATA_FILE_NAME': data_file_name,
+                                        'TMPFS_PATH': tmpfs_path},
+                                volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
+                                tmpfs={tmpfs_path: ''},
+                                stderr=True).decode('utf-8','ignore')
 
-                        except docker.errors.ContainerError as cont_err:
-                                app.logger.error(cont_err)
-                                raise RuntimeError('Runner failed')
+                except docker.errors.ContainerError as cont_err:
+                        app.logger.error(cont_err)
+                        raise RuntimeError('Runner failed')
 
                 log_data = {}
                 p = re.compile('zeek-recording-(.*?) \((.*?)\): (.*)s')
@@ -341,33 +343,34 @@ def broker():
                                 if m:
                                         log_data['{:s}_{:s}'.format(m.group(1), m.group(2))] = float(m.group(3))
 
-                db_conn = sqlite3.connect(DATABASE_FILE)
-                c = db_conn.cursor()
-                c.execute('''CREATE TABLE IF NOT EXISTS "broker" (
-                                 "stamp" datetime primary key default (datetime('now', 'localtime')),
-                                 "logger_sending" float not null,
-                                 "logger_receiving" float not null,
-                                 "manager_sending" float not null,
-                                 "manager_receiving" float not null,
-                                 "proxy_sending" float not null,
-                                 "proxy_receiving" float not null,
-                                 "worker_sending" float not null,
-                                 "worker_receiving" float not null,
-                                 "system" float not null);''')
+                if req_vals['remote']:
+                        db_conn = sqlite3.connect(DATABASE_FILE)
+                        c = db_conn.cursor()
+                        c.execute('''CREATE TABLE IF NOT EXISTS "broker" (
+                                         "stamp" datetime primary key default (datetime('now', 'localtime')),
+                                         "logger_sending" float not null,
+                                         "logger_receiving" float not null,
+                                         "manager_sending" float not null,
+                                         "manager_receiving" float not null,
+                                         "proxy_sending" float not null,
+                                         "proxy_receiving" float not null,
+                                         "worker_sending" float not null,
+                                         "worker_receiving" float not null,
+                                         "system" float not null);''')
 
-                c.execute('''insert into broker (logger_sending, logger_receiving,
-                                                 manager_sending, manager_receiving,
-                                                 proxy_sending, proxy_receiving,
-                                                 worker_sending, worker_receiving,
-                                                 system) values (?,?,?,?,?,?,?,?,?)''',
-                          [log_data['logger_sending'], log_data['logger_receiving'],
-                           log_data['manager_sending'], log_data['manager_receiving'],
-                           log_data['proxy_sending'], log_data['proxy_receiving'],
-                           log_data['worker_sending'], log_data['worker_receiving'],
-                           log_data['system']])
+                        c.execute('''insert into broker (logger_sending, logger_receiving,
+                                                         manager_sending, manager_receiving,
+                                                         proxy_sending, proxy_receiving,
+                                                         worker_sending, worker_receiving,
+                                                         system) values (?,?,?,?,?,?,?,?,?)''',
+                                  [log_data['logger_sending'], log_data['logger_receiving'],
+                                   log_data['manager_sending'], log_data['manager_receiving'],
+                                   log_data['proxy_sending'], log_data['proxy_receiving'],
+                                   log_data['worker_sending'], log_data['worker_receiving'],
+                                   log_data['system']])
 
-                db_conn.commit()
-                db_conn.close()
+                        db_conn.commit()
+                        db_conn.close()
 
         except RuntimeError as rt_err:
                 app.logger.error(traceback.format_exc())
