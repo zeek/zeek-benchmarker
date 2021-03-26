@@ -116,6 +116,7 @@ def parse_request(req):
         req_vals['build_url'] = build_url
         req_vals['remote'] = remote_build
         req_vals['normalized_branch'] = normalized_branch
+        req_vals['commit'] = request.args.get('commit', '')
         return req_vals
 
 @app.route('/zeek', methods=['POST'])
@@ -222,9 +223,10 @@ def zeek():
                                   "id" integer primary key autoincrement not null,
                                   "stamp" datetime default (datetime('now', 'localtime')),
                                   "time_spent" float not null,
-                                  "memory_used" float not null)''')
+                                  "memory_used" float not null, "sha" text);''')
 
-                        c.execute('insert into zeek (time_spent, memory_used) values (?, ?)', [avg_time, avg_mem])
+                        c.execute('insert into zeek (time_spent, memory_used, sha) values (?,?,?)',
+                                  [avg_time, avg_mem, req_vals.get('commit','')])
                         db_conn.commit()
                         db_conn.close()
 
@@ -356,18 +358,18 @@ def broker():
                                          "proxy_receiving" float not null,
                                          "worker_sending" float not null,
                                          "worker_receiving" float not null,
-                                         "system" float not null);''')
+                                         "system" float not null, "sha" text);''')
 
                         c.execute('''insert into broker (logger_sending, logger_receiving,
                                                          manager_sending, manager_receiving,
                                                          proxy_sending, proxy_receiving,
                                                          worker_sending, worker_receiving,
-                                                         system) values (?,?,?,?,?,?,?,?,?)''',
+                                                         system, sha) values (?,?,?,?,?,?,?,?,?,?)''',
                                   [log_data['logger_sending'], log_data['logger_receiving'],
                                    log_data['manager_sending'], log_data['manager_receiving'],
                                    log_data['proxy_sending'], log_data['proxy_receiving'],
                                    log_data['worker_sending'], log_data['worker_receiving'],
-                                   log_data['system']])
+                                   log_data['system'], req_vals['commit']])
 
                         db_conn.commit()
                         db_conn.close()
