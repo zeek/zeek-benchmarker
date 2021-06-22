@@ -5,6 +5,10 @@ INSTALL_PATH=${SCRIPT_PATH}/install
 SOURCE_PATH=${SCRIPT_PATH}/zeek
 AF_PACKET_PATH=${SCRIPT_PATH}/zeek-af_packet-plugin
 
+# Save this off at the start of the run because we're going to need it for storing
+# logs at the end of the run
+CURRENT_DATE=$(date +%Y-%m-%d)
+
 # clone master
 echo
 echo "=== Cloning Zeek master branch ==="
@@ -40,6 +44,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # We need a couple of network interfaces to run t-rex against, but we
     # unfortunately can't do this as part of the Dockerfile due to
     # permissions during the build. Do it here instead.
+    echo
     echo "=== Creating network interfaces for Zeek/T-Rex ==="
     ip link add veth0 type veth peer name veth1
     ip addr add 192.168.1.1 dev veth0
@@ -79,3 +84,27 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 3 -d 1200 --nc
 
 fi
+
+if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
+
+    echo
+    echo "=== Stopping zeek ==="
+    export PATH=${INSTALL_PATH}/bin:${PATH}
+    zeekctl stop
+
+    echo
+    echo "=== Storing logs ==="
+    COMMIT_HASH=$(cd /benchmark/zeek && git rev-parse --short HEAD)
+    LOGS_PATH="/benchmark/zeek_logs/${CURRENT_DATE}-${COMMIT_HASH}"
+    mkdir ${LOGS_PATH}
+    cp -r ${INSTALL_PATH}/logs/${CURRENT_DATE} ${LOGS_PATH}
+    mkdir ${LOGS_PATH}/processes
+    cp -r ${INSTALL_PATH}/spool/logger-1 ${LOGS_PATH}/processes
+    cp -r ${INSTALL_PATH}/spool/manager ${LOGS_PATH}/processes
+    cp -r ${INSTALL_PATH}/spool/proxy-1 ${LOGS_PATH}/processes
+    cp -r ${INSTALL_PATH}/spool/worker-1-* ${LOGS_PATH}/processes
+
+fi
+
+echo
+echo "=== Done ==="
