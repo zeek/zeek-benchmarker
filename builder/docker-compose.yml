@@ -26,7 +26,7 @@ services:
     image: prom/prometheus:v2.28.0
     container_name: prometheus
     volumes:
-      - /home/tim/builder/configs/prometheus:/etc/prometheus
+      - ./configs/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yaml'
@@ -56,14 +56,14 @@ services:
   builder:
     container_name: builder
     build:
-      context: /home/tim/builder
+      context: .
       dockerfile: Dockerfile
     cap_add:
       - ALL
     privileged: true
     volumes:
-      - /home/tim/builder/configs:/benchmark/configs
-      - /home/tim/builder/scripts:/benchmark/scripts
+      - ./configs:/benchmark/configs
+      - ./scripts:/benchmark/scripts
       - zeek_logs:/benchmark/zeek_logs
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh

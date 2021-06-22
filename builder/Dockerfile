@@ -32,6 +32,7 @@ RUN dnf -y install \
     wget \
     zlib-devel
 RUN dnf clean all
+RUN rm -rf /var/cache/dnf
 
 # Install t-rex and copy over the configuration. If this version
 # changes make sure to update build.sh to match.

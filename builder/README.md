@@ -29,6 +29,5 @@ docker compose rm -f builder && docker compose up -d builder
 ## TODO
 
 - Alerting via email, including Zeek failures and notices
-- Replace hard coded paths in docker-compose.yml with something more configurable
 - Default graph configurations for Grafana
 - Autoprune dead builder containers after the benchmark passes run
