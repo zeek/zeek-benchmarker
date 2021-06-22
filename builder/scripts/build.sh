@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 
 SCRIPT_PATH=/benchmark
-INSTALL_DIR=${SCRIPT_PATH}/install
-SOURCE_DIR=${SCRIPT_PATH}/zeek
-AF_PACKET_DIR=${SCRIPT_PATH}/zeek-af_packet-plugin
+INSTALL_PATH=${SCRIPT_PATH}/install
+SOURCE_PATH=${SCRIPT_PATH}/zeek
+AF_PACKET_PATH=${SCRIPT_PATH}/zeek-af_packet-plugin
 
 # clone master
 echo
 echo "=== Cloning Zeek master branch ==="
-git clone --recursive https://github.com/zeek/zeek ${SOURCE_DIR} || exit
+git clone --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || exit
 
 # clone af_packet if it doesn't exist
-if [ ! -d ${AF_PACKET_DIR} ]; then
+if [ ! -d ${AF_PACKET_PATH} ]; then
     echo
     echo "=== Cloning AF_Packet plugin ==="
-    git clone --recursive https://github.com/j-gras/zeek-af_packet-plugin ${AF_PACKET_DIR} || exit
+    git clone --recursive https://github.com/j-gras/zeek-af_packet-plugin ${AF_PACKET_PATH} || exit
 fi
 
 # configure master with af_packet plugin
 echo
 echo "=== Configuring build ==="
-cd ${SOURCE_DIR}
-./configure --generator=Ninja --build-type=relwithdebinfo --disable-python --disable-broker-tests --disable-zkg --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_DIR} --prefix=${INSTALL_DIR} || exit
+cd ${SOURCE_PATH}
+./configure --generator=Ninja --build-type=relwithdebinfo --disable-python --disable-broker-tests --disable-zkg --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || exit
 
 # build/install
 echo
@@ -34,8 +34,8 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # copy zeekctl config
     echo
     echo "=== Copying zeekctl configuration ==="
-    cp ${SCRIPT_PATH}/configs/zeekctl/*.cfg ${INSTALL_DIR}/etc
-    cp ${SCRIPT_PATH}/configs/zeekctl/broker_metrics_port.py ${INSTALL_DIR}/lib64/zeek/python/zeekctl/plugins
+    cp ${SCRIPT_PATH}/configs/zeekctl/*.cfg ${INSTALL_PATH}/etc
+    cp ${SCRIPT_PATH}/configs/zeekctl/broker_metrics_port.py ${INSTALL_PATH}/lib64/zeek/python/zeekctl/plugins
 
     # We need a couple of network interfaces to run t-rex against, but we
     # unfortunately can't do this as part of the Dockerfile due to
@@ -55,7 +55,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # start up zeek
     echo
     echo "=== Starting zeek ==="
-    export PATH=${INSTALL_DIR}/bin:${PATH}
+    export PATH=${INSTALL_PATH}/bin:${PATH}
     zeekctl deploy || exit
 
 fi
@@ -76,6 +76,6 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/v2.89
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 3 -d 300 --nc
+    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 3 -d 1200 --nc
 
 fi

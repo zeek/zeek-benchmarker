@@ -17,6 +17,8 @@ volumes:
     external: true
   grafana_data:
     external: true
+  zeek_logs:
+    external: true
 
 services:
 
@@ -29,7 +31,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yaml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=1y'
+      - '--storage.tsdb.retention.time=26w'
     restart: unless-stopped
     networks:
       zeek-builder:
@@ -56,16 +58,15 @@ services:
     build:
       context: /home/tim/builder
       dockerfile: Dockerfile
-      args:
-        - SKIP_TREX=1
-        - SKIP_ZEEK_DEPLOY=1
     cap_add:
       - ALL
     privileged: true
     volumes:
       - /home/tim/builder/configs:/benchmark/configs
       - /home/tim/builder/scripts:/benchmark/scripts
+      - zeek_logs:/benchmark/zeek_logs
     working_dir: /benchmark
+    command: /benchmark/scripts/build.sh
     networks:
       zeek-builder:
         ipv4_address: 172.16.3.4

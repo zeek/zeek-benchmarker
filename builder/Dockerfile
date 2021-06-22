@@ -40,13 +40,6 @@ RUN mkdir -p /benchmark/trex
 RUN curl -k -o /benchmark/trex/trex-v2.89.tar.gz https://trex-tgn.cisco.com/trex/release/v2.89.tar.gz
 RUN cd /benchmark/trex && tar -xzf trex-v2.89.tar.gz
 
-# Copy over the build script and set the working directory for when
-# the container starts up
-#
-COPY ./scripts/build.sh /benchmark
-
-ARG SKIP_ZEEK_DEPLOY
-ARG SKIP_TREX
-
+# Set the working dir for when the container starts up. This can
+# be reset via docker-compose.yml as well.
 WORKDIR /benchmark
-RUN /benchmark/build.sh
