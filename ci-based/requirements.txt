@@ -1,5 +1,5 @@
 Flask
 requests
-docker
 cryptography
 six
+pyyaml

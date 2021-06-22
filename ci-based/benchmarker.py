@@ -8,41 +8,27 @@ import time
 import traceback
 import sqlite3
 import re
+import io
+import yaml
 from datetime import datetime, timedelta
 
-import docker
 from flask import Flask, request
 
-# These values need to be filled in before runtime will work. Note that the HMAC_KEY
-# *must* be prefixed with 'b' or generating the digest to test with won't work.
-HMAC_KEY = b''
-
-# Path to a pcap file used by the zeek endpoint.
-DATA_FILE = ''
-
-# Path to a cluster-config data file used by the broker endpoint.
-BROKER_CONFIG_FILE = ''
-
-# Path to an sqlite database file that stores the metrics once they're completed for
-# viewing on grafana, etc.
-DATABASE_FILE = ''
-
-# This is the number of loops that the zeek benchmarker will run against the data file
-# in order to average out noise in the process. A value of 3 is a reasonable balance
-# for overall runtime for each request.
-RUN_COUNT = 3
+with open('config.yml', 'r') as config_file:
+        try:
+                config = yaml.safe_load(config_file)
+        except yaml.YAMLError as exc:
+                print(exc)
+                sys.exit(1)
 
 app = Flask(__name__)
-app.config['CPU_SET'] = [22, 23]
-
-docker_client = docker.from_env()
 
 def verify_hmac(request_path, timestamp, request_digest, build_hash):
 
         # Generate a new version of the digest on this side using the same information that the
         # caller use to generate their digest, and then compare the two for validity.
         hmac_msg = '{:s}-{:d}-{:s}\n'.format(request_path, timestamp, build_hash)
-        local_digest = hmac.new(HMAC_KEY, hmac_msg.encode('utf-8'), 'sha256').hexdigest()
+        local_digest = hmac.new(config['HMAC_KEY'].encode('utf-8'), hmac_msg.encode('utf-8'), 'sha256').hexdigest()
         if not hmac.compare_digest(local_digest, request_digest):
                 app.logger.error("HMAC digest from request ({:s}) didn't match local digest ({:s})".format(request_digest, local_digest))
                 return False
@@ -129,17 +115,21 @@ def zeek():
         base_path = os.path.dirname(os.path.abspath(__file__))
         work_path = os.path.join(base_path, req_vals['normalized_branch'])
 
-        data_file_path = os.path.dirname(DATA_FILE)
-        data_file_name = os.path.basename(DATA_FILE)
-        tmpfs_path = '/mnt/data/tmpfs'
         filename = req_vals['build_url'].rsplit('/', 1)[1]
 
         result = None
         try:
                 os.mkdir(work_path, mode=0o700)
 
+                docker_env = {
+                        'DATA_FILE_NAME': config['DATA_FILE'],
+                        'BUILD_FILE_NAME': '',
+                        'BUILD_FILE_PATH': '',
+                        'ZEEKCPUS': ','.join(map(str, config['CPU_SET']))
+                }
+
                 if req_vals['remote']:
-                        dockerfile = 'Dockerfile.zeek-runner'
+                        docker_image = 'zeek-remote'
                         file_path = os.path.join(work_path, filename)
                         r = requests.get(req_vals['build_url'], allow_redirects=True)
                         if not r:
@@ -154,70 +144,44 @@ def zeek():
                                               stdout=subprocess.DEVNULL)
                         if ret:
                                 raise RuntimeError('Failed to validate build file checksum')
+
+                        docker_env['BUILD_FILE_PATH'] = work_path
+                        docker_env['BUILD_FILE_NAME'] = filename
                 else:
-                        dockerfile = 'Dockerfile.zeek-localrunner'
-                        file_path = req_vals['build_url'][7:]
-                        ret = subprocess.call(['cp', '-r', file_path, os.path.join(work_path, filename)],
-                                              stdout=subprocess.DEVNULL)
-                        if ret:
-                                raise RuntimeError('Failed to copy local build directory')
-
-                # Build new docker image from the base image, tagged with the normalized branch name
-                # so that we can use/delete it more easily.
-                try:
-                        docker_client.images.build(tag=req_vals['normalized_branch'], path=work_path, rm=True,
-                                                   dockerfile=os.path.join(base_path, dockerfile),
-                                                   container_limits={'cpusetcpus': '{:d},{:d}'.format(
-                                                           app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
-                                                   buildargs={'TMPFS_PATH': tmpfs_path,
-                                                              'BUILD_FILE_NAME': filename})
-
-                except docker.errors.BuildError as build_err:
-                        app.logger.error(build_err)
-                        raise RuntimeError('Failed to build runner image')
+                        docker_image = 'zeek-local'
+                        docker_env['BUILD_FILE_PATH'] = req_vals['build_url'][7:]
 
                 total_time = 0
                 total_mem = 0
 
-                for i in range(RUN_COUNT):
-                        # Run benchmark
-                        try:
-                                # The docker API expects the seccomp to be the actual JSON from the file
-                                # so trying to pass the filename fails (that works on the command-line).
-                                # Load the json into a variable.
-                                seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
+                for i in range(config['RUN_COUNT']):
+                        proc = subprocess.Popen(['/usr/local/bin/docker-compose', 'up',
+                                                 '--no-log-prefix', '--force-recreate',
+                                                 docker_image],
+                                                env=docker_env, stdout=subprocess.PIPE,
+                                                stderr=subprocess.PIPE)
+                        if not proc:
+                                raise RuntimeError('Runner failed to execute')
 
-                                log_output = docker_client.containers.run(
-                                        image=req_vals['normalized_branch'],
-                                        remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
-                                        security_opt=['seccomp={:s}'.format(seccomp)],
-                                        environment={
-                                                'BUILD_FILE_NAME': filename,
-                                                'DATA_FILE_PATH': data_file_path,
-                                                'DATA_FILE_NAME': data_file_name,
-                                                'TMPFS_PATH': tmpfs_path,
-                                                'ZEEKCPUS': '{:d},{:d}'.format(
-                                                        app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
-                                        volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
-                                        tmpfs={tmpfs_path: ''},
-                                        stderr=True)
+                        found = False
+                        for line in io.TextIOWrapper(proc.stdout, encoding='utf-8'):
+                                match = re.match(r'(\d+(\.\d+)?) (\d+)', line)
+                                if match:
+                                        total_time += float(match.group(1))
+                                        total_mem  += int(match.group(3))
+                                        found = True
+                                        break
 
-                                # Output from the benchmark script is a time in seconds followed by a memory
-                                # value in bytes
-                                [time_elapsed, max_mem] = log_output.split()
-                                total_time += float(time_elapsed)
-                                total_mem += int(max_mem)
-                        except docker.errors.ContainerError as cont_err:
-                                app.logger.error(cont_err)
-                                raise RuntimeError('Runner failed')
+                        if not found:
+                                raise RuntimeError('Failed to find valid output in pass %d'.format(i))
 
-                avg_time = total_time / float(RUN_COUNT)
-                avg_mem = int(total_mem / float(RUN_COUNT))
+                avg_time = total_time / float(config['RUN_COUNT'])
+                avg_mem = int(total_mem / float(config['RUN_COUNT']))
                 log_output = 'Averaged over {:d} passes:\nTime Spent: {:.3f} seconds\nMax memory usage: {:d} bytes'.format(
-                        RUN_COUNT, avg_time, avg_mem)
+                        config['RUN_COUNT'], avg_time, avg_mem)
 
                 if req_vals['remote']:
-                        db_conn = sqlite3.connect(DATABASE_FILE)
+                        db_conn = sqlite3.connect(config['DATABASE_FILE'])
                         c = db_conn.cursor()
                         c.execute('''CREATE TABLE IF NOT EXISTS "zeek" (
                                   "id" integer primary key autoincrement not null,
@@ -240,12 +204,7 @@ def zeek():
         else:
                 result = (log_output, 200)
 
-        # Destroy the container and image
-        try:
-                docker_client.images.remove(image=req_vals['normalized_branch'], force=True)
-        except docker.errors.APIError as api_err:
-                app.logger.error(api_err)
-                result = ('Failed to destroy runner image', 500)
+        subprocess.call(['docker', 'container', 'rm', 'zeek'])
 
         if os.path.exists(work_path):
                 shutil.rmtree(work_path)
@@ -261,19 +220,20 @@ def broker():
 
         base_path = os.path.dirname(os.path.abspath(__file__))
         work_path = os.path.join(base_path, req_vals['normalized_branch'])
-
-        data_file_path = os.path.dirname(BROKER_CONFIG_FILE)
-        data_file_dir  = os.path.basename(data_file_path)
-        data_file_name = os.path.basename(BROKER_CONFIG_FILE)
-        tmpfs_path = '/mnt/data/tmpfs'
         filename = req_vals['build_url'].rsplit('/', 1)[1]
 
         result = None
         try:
                 os.mkdir(work_path, mode=0o700)
 
+                docker_env = {
+                        'DATA_FILE_NAME': config['BROKER_CONFIG_FILE_NAME'],
+                        'BUILD_FILE_NAME': '',
+                        'BUILD_FILE_PATH': ''
+                }
+
                 if req_vals['remote']:
-                        dockerfile = 'Dockerfile.broker-runner'
+                        docker_image = 'broker-remote'
                         file_path = os.path.join(work_path, filename)
                         r = requests.get(req_vals['build_url'], allow_redirects=True)
                         if not r:
@@ -288,65 +248,40 @@ def broker():
                                               stdout=subprocess.DEVNULL)
                         if ret:
                                 raise RuntimeError('Failed to validate checksum of file')
+
+                        docker_env['BUILD_FILE_PATH'] = work_path
+                        docker_env['BUILD_FILE_NAME'] = filename
                 else:
-                        dockerfile = 'Dockerfile.broker-localrunner'
-                        file_path = req_vals['build_url'][7:]
-                        shutil.copytree(file_path, os.path.join(work_path, filename))
-
-                # Build new docker image from the base image, tagged with the normalized branch name
-                # so that we can use/delete it more easily.
-                try:
-                        docker_client.images.build(tag=req_vals['normalized_branch'], path=work_path, rm=True,
-                                                   dockerfile=os.path.join(base_path, dockerfile),
-                                                   container_limits={'cpusetcpus': '{:d},{:d}'.format(
-                                                           app.config['CPU_SET'][0], app.config['CPU_SET'][1])},
-                                                   buildargs={'TMPFS_PATH': tmpfs_path,
-                                                              'BUILD_FILE_NAME': filename})
-
-                except docker.errors.BuildError as build_err:
-                        app.logger.error(build_err)
-                        raise RuntimeError('Failed to build runner image')
-
-                log_output = ''
+                        docker_image = 'broker-local'
+                        docker_env['BUILD_FILE_PATH'] = req_vals['build_url'][7:]
 
                 # Run benchmark
-                try:
-                        # The docker API expects the seccomp to be the actual JSON from the file
-                        # so trying to pass the filename fails (that works on the command-line).
-                        # Load the json into a variable.
-                        seccomp = open(os.path.join(base_path, 'zeek-seccomp.json'), 'r').read()
+                proc = subprocess.Popen(['/usr/local/bin/docker-compose', 'up',
+                                         '--no-log-prefix', '--force-recreate',
+                                         docker_image],
+                                        env=docker_env, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+                if not proc:
+                        raise RuntimeError('Runner failed to execute')
+                if not proc.stdout:
+                        raise RuntimeError('stdout was missing')
 
-                        log_output += docker_client.containers.run(
-                                image=req_vals['normalized_branch'],
-                                remove=True, network='zeek-internal', cap_add=['SYS_NICE'],
-                                security_opt=['seccomp={:s}'.format(seccomp)],
-                                environment={
-                                        'BUILD_FILE_NAME': filename,
-                                        'DATA_FILE_PATH': data_file_path,
-                                        'DATA_FILE_DIR' : data_file_dir,
-                                        'DATA_FILE_NAME': data_file_name,
-                                        'TMPFS_PATH': tmpfs_path},
-                                volumes={data_file_path: {'bind': data_file_path, 'mode': 'ro'}},
-                                tmpfs={tmpfs_path: ''},
-                                stderr=True).decode('utf-8','ignore')
-
-                except docker.errors.ContainerError as cont_err:
-                        app.logger.error(cont_err)
-                        raise RuntimeError('Runner failed')
-
+                log_output = ''
                 log_data = {}
                 p = re.compile('zeek-recording-(.*?) \((.*?)\): (.*)s')
-                for line in iter(log_output.splitlines()):
+                for line in io.TextIOWrapper(proc.stdout, encoding='utf-8'):
                         if line.startswith('system'):
+                                log_output += line
                                 parts = line.split(':')
                                 log_data['system'] = float(parts[1].strip()[:-1])
-                        else:
+                        elif line.startswith('zeek'):
+                                log_output += line
                                 m = p.match(line)
                                 if m:
                                         log_data['{:s}_{:s}'.format(m.group(1), m.group(2))] = float(m.group(3))
 
                 if req_vals['remote']:
-                        db_conn = sqlite3.connect(DATABASE_FILE)
+                        db_conn = sqlite3.connect(config['DATABASE_FILE'])
                         c = db_conn.cursor()
                         c.execute('''CREATE TABLE IF NOT EXISTS "broker" (
                                          "stamp" datetime primary key default (datetime('now', 'localtime')),
@@ -384,12 +319,7 @@ def broker():
         else:
                 result = (log_output, 200)
 
-        # Destroy the container and image
-        try:
-                docker_client.images.remove(image=req_vals['normalized_branch'], force=True)
-        except docker.errors.APIError as api_err:
-                app.logger.error(api_err)
-                result = ('Failed to destroy runner image', 500)
+        subprocess.call(['docker', 'container', 'rm', 'broker'])
 
         if os.path.exists(work_path):
                 shutil.rmtree(work_path)

@@ -1,0 +1,25 @@
+# The key used in creating the HMAC hash that must be sent in the Zeek-HMAC header when
+# making requests to benchmark remote builds.
+HMAC_KEY: unset
+
+# Filename of a pcap file used by the zeek endpoint. This should be stored in the path
+# referred to by the test_data docker volume.
+DATA_FILE: unset
+
+# Path to a cluster-config data file used by the broker endpoint. This should be
+# stored in the path referred to by the broker_test_data docker volume.
+BROKER_CONFIG_FILE_NAME: unset
+
+# Path to an sqlite database file that stores the metrics once they're completed for
+# viewing on grafana, etc.
+DATABASE_FILE: unset
+
+# Set of two CPUs to be used by the zeek endpoint.
+CPU_SET:
+  - 1
+  - 2
+
+# This is the number of loops that the zeek benchmarker will run against the data file
+# in order to average out noise in the process. A value of 3 is a reasonable balance
+# for overall runtime for each request.
+RUN_COUNT: 3

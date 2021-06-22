@@ -1,0 +1,121 @@
+version: '3.3'
+
+networks:
+  zeek-internal:
+    driver: bridge
+
+# These are created with
+# docker volume create --driver local \
+#    --opt type=none \
+#    --opt device=/path/to/data \
+#    --opt o=bind volume_name
+volumes:
+  grafana_data:
+    external: true
+  test_data:
+    external: true
+  broker_test_data:
+    external: true
+
+services:
+  grafana:
+    image: grafana/grafana:8.0.3
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_USERS_ALLOW_SIGNUP=false
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+
+  zeek-base:
+    container_name: zeek
+    build:
+      context: .
+      dockerfile: Dockerfile
+    cap_add:
+      - SYS_NICE
+    security_opt:
+      - "seccomp:./zeek-seccomp.json"
+    environment:
+      - TMPFS_PATH=/mnt/data/tmpfs
+      - ZEEKCPUS=${ZEEKCPUS}
+      - ZEEKPATH=/benchmarker/zeek/install/share/zeek:/benchmarker/zeek/install/share/zeek/policy:/benchmarker/zeek/install/share/zeek/site:/benchmarker/zeek/install/share/zeek/builtin-plugins:/benchmarker/zeek/install/share/zeek/builtin-plugins/Zeek_AF_Packet
+      - ZEEKSEED=/benchmarker/random.seed
+      - ZEEKBIN=/benchmarker/zeek/install/bin/zeek
+      - ZEEK_PLUGIN_PATH=/benchmarker/zeek/install/lib/zeek/plugins
+      - DATA_FILE_NAME=${DATA_FILE_NAME}
+    volumes:
+      - test_data:/test_data:ro
+      - ./scripts:/benchmarker/scripts:ro
+    tmpfs: /mnt/data/tmpfs
+    networks:
+      - zeek-internal
+    command: /benchmarker/scripts/run-zeek.sh
+
+  # Environment variables that need to be set in the host environment running docker-compose:
+  # - BUILD_FILE_PATH
+  #   if remote: set to path where $BUILD_FILE_NAME is stored
+  #   if local: set to install path of zeek
+  # - BUILD_FILE_NAME (if remote, set to blank if local)
+  #   if remote: set to filename of tgz file with build
+  #   if local: set to blank
+  # - DATA_FILE_NAME
+  zeek-remote:
+    extends: zeek-base
+    environment:
+      - IS_LOCAL=0
+      - BUILD_FILE_NAME=${BUILD_FILE_NAME}
+    volumes:
+      - ${BUILD_FILE_PATH}:/benchmarker/binaries:ro
+
+  zeek-local:
+    extends: zeek-base
+    environment:
+      - IS_LOCAL=1
+      - DATA_FILE_NAME=${DATA_FILE_NAME}
+    volumes:
+      - ${BUILD_FILE_PATH}:/benchmarker/zeek/install:ro
+
+  broker-base:
+    container_name: broker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    cap_add:
+      - SYS_NICE
+    security_opt:
+      - "seccomp:./zeek-seccomp.json"
+    environment:
+      - TMPFS_PATH=/mnt/data/tmpfs
+      - DATA_FILE_NAME=${DATA_FILE_NAME}
+    volumes:
+      - broker_test_data:/test_data:ro
+      - ./scripts:/benchmarker/scripts:ro
+    tmpfs: /mnt/data/tmpfs
+    command: /benchmarker/scripts/run-broker.sh
+
+  # Environment variables that need to be set in the host environment running docker-compose:
+  # - BUILD_FILE_PATH
+  #   if remote: set to path where $BUILD_FILE_NAME is stored
+  #   if local: set to install path of broker
+  # - BUILD_FILE_NAME (if remote, set to blank if local)
+  #   if remote: set to filename of tgz file with build
+  #   if local: set to blank
+  # - DATA_FILE_NAME
+  broker-remote:
+    extends: broker-base
+    environment:
+      - IS_LOCAL=0
+      - BUILD_FILE_NAME=${BUILD_FILE_NAME}
+    volumes:
+      - ${BUILD_FILE_PATH}:/benchmarker/binaries:ro
+
+  broker-local:
+    extends: broker-base
+    environment:
+      - IS_LOCAL=1
+      - DATA_FILE_NAME=${DATA_FILE_NAME}
+    volumes:
+      - ${BUILD_FILE_PATH}:/benchmarker/broker/install:ro

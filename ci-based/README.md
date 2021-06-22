@@ -7,16 +7,25 @@ It uses Docker for privilege separation when running the benchmark scripts.
 ## Requirements
 - Python 3
 - Docker
+- Docker-compose
 
 ## Setup
 
-1. Edit the benchmark.py script and set the HMAC_KEY variable to an HMAC key hash. This key will be used for hashing the requests based on a set of data passed as part of the request. As mentioned in the comment in the script, this needs to be a python byte-string, not a plain string.
-2. Edit the benchmark.py script and set the DATA_FILE variable to a path that contains a pcap file used for benchmarking.
-3. Edit the benchmark.py script and set the host, port, and SSL information at the bottom of the file. This information will be used for running flask.
+1. Create three docker volumes as described at the top of the docker-compose file:
+   - grafana_data: A path to store data for grafana
+   - test_data: A path containing pcaps for zeek benchmarks
+   - broker_test_data: A path containing a cluster configuration data file for broker benchmarks
+2. Create the four necessary docker images by running the following. Ignore warnings about unset environment variables.
+
+   sudo docker-compose build zeek-local
+   sudo docker-compose build zeek-remote
+   sudo docker-compose build broker-local
+   sudo docker-compose build broker-remote
+
+3. Edit the config.yml and set the values as described in that file.
 4. Create a python virtualenv in the same directory as the script, and use `pip` to install the required python modules listed in `requirements.txt`
 5. If systemd support is desired, edit the zeek-benchmarker.service file, update the `<path>` values to the location of the script, and copy it into the proper directory for systemd (usually `/etc/systemd/system`).
-6. Create the base docker image using the command `docker build -t zeek-benchmarker -f Dockerfile.base .`. This command should be run from within the `zeek-benchmarker` directory. This creates a base image that includes all of the common files that every benchmark run will require. The base image requires the `centos-8` image to be available in order to build.
-7. By default the benchmarker runs on a system with a large amount of CPUs, and we limit the CPUs used to a specific set. This is set in the `app.config['CPU_SET']` variable. If used on a system with fewer CPUs, this needs to be updated.
+6. By default the benchmarker runs on a system with a large amount of CPUs, and we limit the CPUs used to a specific set. This is set in the `app.config['CPU_SET']` variable. If used on a system with fewer CPUs, this needs to be updated.
 
 ## Supported Endpoints
 
