@@ -1,0 +1,74 @@
+version: '3.9'
+
+networks:
+  zeek-builder:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.3.0/24"
+
+# These are created with
+# docker volume create --driver local \
+#    --opt type=none \
+#    --opt device=/path/to/data \
+#    --opt o=bind volume_name
+volumes:
+  prometheus_data:
+    external: true
+  grafana_data:
+    external: true
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.28.0
+    container_name: prometheus
+    volumes:
+      - /home/tim/builder/configs/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=1y'
+    restart: unless-stopped
+    networks:
+      zeek-builder:
+        ipv4_address: 172.16.3.2
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana:8.0.3
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_USERS_ALLOW_SIGNUP=false
+    restart: unless-stopped
+    networks:
+      zeek-builder:
+        ipv4_address: 172.16.3.3
+    ports:
+      - 3000:3000
+
+  builder:
+    container_name: builder
+    build:
+      context: /home/tim/builder
+      dockerfile: Dockerfile
+      args:
+        - SKIP_TREX=1
+        - SKIP_ZEEK_DEPLOY=1
+    cap_add:
+      - ALL
+    privileged: true
+    volumes:
+      - /home/tim/builder/configs:/benchmark/configs
+      - /home/tim/builder/scripts:/benchmark/scripts
+    working_dir: /benchmark
+    networks:
+      zeek-builder:
+        ipv4_address: 172.16.3.4
+    expose:
+      - 4040-4042/tcp
+      - 4051-4058/tcp
