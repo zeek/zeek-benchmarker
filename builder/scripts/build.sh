@@ -9,6 +9,12 @@ AF_PACKET_PATH=${SCRIPT_PATH}/zeek-af_packet-plugin
 # logs at the end of the run
 CURRENT_DATE=$(date +%Y-%m-%d)
 
+# We need postfix for a few things to send error messages externally, so start it
+# up before getting started.
+echo
+echo "=== Starting postfix ==="
+postfix start
+
 # clone master
 echo
 echo "=== Cloning Zeek master branch ==="

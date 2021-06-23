@@ -10,6 +10,7 @@ RUN dnf -y install \
     cmake \
     cronie \
     curl \
+    cyrus-sasl-plain \
     elfutils-libelf-devel \
     flex \
     gcc \
@@ -20,13 +21,14 @@ RUN dnf -y install \
     kernel-headers \
     libpcap \
     libpcap-devel \
+    mailx \
     net-tools \
     ninja-build \
     openssl-devel \
+    postfix \
     python3 \
     python3-devel \
     rsync \
-    sendmail \
     swig \
     tar \
     wget \
@@ -40,6 +42,13 @@ RUN rm -rf /var/cache/dnf
 RUN mkdir -p /benchmark/trex
 RUN curl -k -o /benchmark/trex/trex-v2.89.tar.gz https://trex-tgn.cisco.com/trex/release/v2.89.tar.gz
 RUN cd /benchmark/trex && tar -xzf trex-v2.89.tar.gz
+
+RUN mkdir -p /etc/postfix/sasl
+COPY configs/postfix/main.cf /etc/postfix/main.cf
+COPY configs/postfix/sasl_passwd /etc/postfix/sasl/sasl_passwd
+RUN chmod 644 /etc/postfix/main.cf
+RUN postmap /etc/postfix/sasl/sasl_passwd
+RUN chmod 600 /etc/postfix/sasl/*
 
 # Set the working dir for when the container starts up. This can
 # be reset via docker-compose.yml as well.
