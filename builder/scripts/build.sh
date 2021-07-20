@@ -64,6 +64,9 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     echo "*/5 * * * * /usr/local/zeek/bin/zeekctl cron" | crontab -
     crond
 
+    # disable checksums for t-rex data to process correctly
+    echo "redef ignore_checksums = T;" >> ${INSTALL_PATH}/share/zeek/site/local.zeek
+
     # start up zeek
     echo
     echo "=== Starting zeek ==="
