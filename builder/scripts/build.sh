@@ -38,6 +38,7 @@ echo
 echo "=== Building and installing ==="
 cd build
 ninja install || exit
+export PATH=${INSTALL_PATH}/bin:${PATH}
 
 if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
@@ -66,7 +67,6 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # start up zeek
     echo
     echo "=== Starting zeek ==="
-    export PATH=${INSTALL_PATH}/bin:${PATH}
     zeekctl deploy || exit
 
 fi
@@ -95,7 +95,6 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
     echo
     echo "=== Stopping zeek ==="
-    export PATH=${INSTALL_PATH}/bin:${PATH}
     zeekctl stop
 
     echo
