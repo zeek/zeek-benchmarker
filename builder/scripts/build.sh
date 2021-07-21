@@ -9,6 +9,36 @@ AF_PACKET_PATH=${SCRIPT_PATH}/zeek-af_packet-plugin
 # logs at the end of the run
 CURRENT_DATE=$(date +%Y-%m-%d)
 
+# Steal some email information from the zeekctl.cfg file so we don't have to
+# duplicate it here
+MAIL_FROM=$(awk '/MailFrom/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
+MAIL_TO=$(awk '/MailTo/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
+
+function send_email() {
+
+    sendmail "${MAIL_TO}" <<EOF
+From: ${MAIL_FROM}
+Subject: ${1}
+${2}
+EOF
+
+}
+
+function send_error_email() {
+
+    sendmail "${MAIL_TO}" <<EOF
+From: ${MAIL_FROM}
+Subject: Builder benchmark pass failed
+${2}
+EOF
+
+    postfix flush
+    sleep 10
+    postfix stop
+    exit 1
+
+}
+
 # We need postfix for a few things to send error messages externally, so start it
 # up before getting started.
 echo
@@ -18,26 +48,28 @@ postfix start
 # clone master
 echo
 echo "=== Cloning Zeek master branch ==="
-git clone --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || exit
+git clone --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || send_error_email "Git clone of zeek branch failed"
 
 # clone af_packet if it doesn't exist
 if [ ! -d ${AF_PACKET_PATH} ]; then
     echo
     echo "=== Cloning AF_Packet plugin ==="
-    git clone --recursive https://github.com/j-gras/zeek-af_packet-plugin ${AF_PACKET_PATH} || exit
+    git clone --recursive https://github.com/j-gras/zeek-af_packet-plugin ${AF_PACKET_PATH} || send_error_email "Git clone of zeek-af_packet-plugin failed"
 fi
 
 # configure master with af_packet plugin
 echo
 echo "=== Configuring build ==="
 cd ${SOURCE_PATH}
-./configure --generator=Ninja --build-type=relwithdebinfo --disable-python --disable-broker-tests --disable-zkg --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || exit
+HEAD_COMMIT=$(git rev-parse HEAD)
+START_TIME=$(date)
+./configure --generator=Ninja --build-type=relwithdebinfo --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
 # build/install
 echo
 echo "=== Building and installing ==="
 cd build
-ninja install || exit
+ninja install || send_error_email "Build failed"
 export PATH=${INSTALL_PATH}/bin:${PATH}
 
 if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
@@ -70,7 +102,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # start up zeek
     echo
     echo "=== Starting zeek ==="
-    zeekctl deploy || exit
+    zeekctl deploy || send_error_email "zeekctl deploy failed"
 
 fi
 
@@ -113,6 +145,15 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     cp -r ${INSTALL_PATH}/spool/worker-1-* ${LOGS_PATH}/processes
 
 fi
+
+send_email "Builder benchmark completed" "Builder pass was completed for commit ${HEAD_COMMIT} started at ${START_TIME}."
+
+# This shouldn't be necessary but flush postfix and sleep for a bit so any email
+# gets out of the queue before shutting down and destroying the container.
+echo "=== Flushing and shutting down postfix (10s delay) ==="
+postfix flush
+sleep 10
+postfix stop
 
 echo
 echo "=== Done ==="
