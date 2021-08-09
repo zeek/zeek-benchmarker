@@ -122,7 +122,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/latest
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 4 -d 416000 --nc
+    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 4 -d 259200 --nc
 
 fi
 
