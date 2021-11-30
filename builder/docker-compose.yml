@@ -62,8 +62,8 @@ services:
       - ALL
     privileged: true
     volumes:
-      - ./configs:/benchmark/configs
-      - ./scripts:/benchmark/scripts
+      - ./configs:/benchmark/configs:ro
+      - ./scripts:/benchmark/scripts:ro
       - zeek_logs:/benchmark/zeek_logs
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh

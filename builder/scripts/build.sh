@@ -14,6 +14,9 @@ CURRENT_DATE=$(date +%Y-%m-%d)
 MAIL_FROM=$(awk '/MailFrom/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
 MAIL_TO=$(awk '/MailTo/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
 
+BRANCH=master
+RUN_TIME=259200
+
 function send_email() {
 
     sendmail "${MAIL_TO}" <<EOF
@@ -48,7 +51,7 @@ postfix start
 # clone master
 echo
 echo "=== Cloning Zeek master branch ==="
-git clone --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || send_error_email "Git clone of zeek branch failed"
+git clone --branch ${BRANCH} --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || send_error_email "Git clone of zeek branch failed"
 
 # clone af_packet if it doesn't exist
 if [ ! -d ${AF_PACKET_PATH} ]; then
@@ -122,7 +125,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/latest
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 4 -d 259200 --nc
+    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 4 -d ${RUN_TIME} --nc
 
 fi
 
