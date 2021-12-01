@@ -87,60 +87,60 @@ Usage: $0 -b [zeek binary path] -d [data file path]
     exit 1
 }
 
-while (( "$#" )); do
-  case "$1" in
-      -d|--data-file)
-	  DATA_FILE=$2
-	  shift 2
-	  ;;
-      -b|--build)
-	  ZEEK_BUILD=$2
-	  shift 2
-	  ;;
-      -m|--mode)
-	  MODE=$2
-	  shift 2
-	  ;;
-      -i|--interface)
-	  INTERFACE=$2
-	  shift 2
-	  ;;
-      -f|--flamegraph)
-	  FLAMEGRAPH_PATH=$2
-	  shift 2
-	  ;;
-      -o|--output)
-	  FLAMEGRAPH_PREFIX=$2
-	  shift 2
-	  ;;
-      -s|--seed)
-	  SEED_FILE=$2
-	  shift 2
-	  ;;
-      -q|--quiet)
-	  QUIET=1
-	  shift 1
-	  ;;
-      -c|--cpus)
-	  CPU_ARRAY=($(echo $2 | tr ',' "\n"))
-	  ZEEK_CPU=${CPU_ARRAY[0]}
-	  if [ ${#CPU_ARRAY[@]} -gt 1 ]; then
-	      TCPREPLAY_CPU=${CPU_ARRAY[1]}
-	  fi
-	  shift 2
-	  ;;
-      -p|--parseable)
-	  PARSEABLE=1
-	  shift 1
-	  ;;
-      -h|--help)
-	  usage
-	  ;;
-      *)
-          echo "Invalid option '$1'.  Try $0 --help to see available options."
-          exit 1
-          ;;
-  esac
+while (("$#")); do
+    case "$1" in
+        -d | --data-file)
+            DATA_FILE=$2
+            shift 2
+            ;;
+        -b | --build)
+            ZEEK_BUILD=$2
+            shift 2
+            ;;
+        -m | --mode)
+            MODE=$2
+            shift 2
+            ;;
+        -i | --interface)
+            INTERFACE=$2
+            shift 2
+            ;;
+        -f | --flamegraph)
+            FLAMEGRAPH_PATH=$2
+            shift 2
+            ;;
+        -o | --output)
+            FLAMEGRAPH_PREFIX=$2
+            shift 2
+            ;;
+        -s | --seed)
+            SEED_FILE=$2
+            shift 2
+            ;;
+        -q | --quiet)
+            QUIET=1
+            shift 1
+            ;;
+        -c | --cpus)
+            CPU_ARRAY=($(echo $2 | tr ',' "\n"))
+            ZEEK_CPU=${CPU_ARRAY[0]}
+            if [ ${#CPU_ARRAY[@]} -gt 1 ]; then
+                TCPREPLAY_CPU=${CPU_ARRAY[1]}
+            fi
+            shift 2
+            ;;
+        -p | --parseable)
+            PARSEABLE=1
+            shift 1
+            ;;
+        -h | --help)
+            usage
+            ;;
+        *)
+            echo "Invalid option '$1'.  Try $0 --help to see available options."
+            exit 1
+            ;;
+    esac
 done
 
 if [ "${MODE}" != "intf" -a "${MODE}" != "file" -a "${MODE}" != "flamegraph" ]; then
@@ -183,9 +183,9 @@ if [ "${MODE}" = "intf" ]; then
     TIME_FILE=$(mktemp)
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Testing reading data file from a network interface #######"
-	echo "Using CPU ${ZEEK_CPU} for zeek and CPU ${TCPREPLAY_CPU} for tcpreplay"
-	echo "Running '${ZEEK_BUILD} ${ZEEK_ARGS}' against ${DATA_FILE}"
+        echo "####### Testing reading data file from a network interface #######"
+        echo "Using CPU ${ZEEK_CPU} for zeek and CPU ${TCPREPLAY_CPU} for tcpreplay"
+        echo "Running '${ZEEK_BUILD} ${ZEEK_ARGS}' against ${DATA_FILE}"
     fi
 
     # Start zeek, find it's PID, then wait 10s to let it reach a steady state
@@ -194,11 +194,11 @@ if [ "${MODE}" = "intf" ]; then
 
     sleep 5
     ZEEK_PID=$(ps -ef | awk -v timepid="${TIME_PID}" '{ if ($3 == timepid) { print $2 } }')
-    renice -20 -p $ZEEK_PID > /dev/null
+    renice -20 -p $ZEEK_PID >/dev/null
     sleep 5
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "Zeek running on PID ${ZEEK_PID}"
+        echo "Zeek running on PID ${ZEEK_PID}"
     fi
 
     # Start perf stat on the zeek process
@@ -207,7 +207,7 @@ if [ "${MODE}" = "intf" ]; then
 
     # Start replaying the data
     if [ ${QUIET} -eq 0 ]; then
-	echo "Starting replay"
+        echo "Starting replay"
     fi
     taskset --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
 
@@ -230,18 +230,18 @@ elif [ "${MODE}" = "file" ]; then
     TIME_FILE=$(mktemp)
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Testing reading the file directly from disk #######"
-	echo "Using CPU ${ZEEK_CPU} for zeek"
+        echo "####### Testing reading the file directly from disk #######"
+        echo "Using CPU ${ZEEK_CPU} for zeek"
     fi
     taskset --cpu-list $ZEEK_CPU /usr/bin/time -f "%e %M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS -r $DATA_FILE
     TIME_PID=$!
     ZEEK_PID=$(ps -ef | awk -v timepid="${TIME_PID}" '{ if ($3 == timepid) { print $2 } }')
-    renice -20 -p $ZEEK_PID > /dev/null
+    renice -20 -p $ZEEK_PID >/dev/null
 
     if [ ${PARSEABLE} -eq 0 ]; then
-	awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " KB"}' $TIME_FILE
+        awk '{print "Time spent: " $1 " seconds\nMax memory usage: " $2 " KB"}' $TIME_FILE
     else
-	cat $TIME_FILE
+        cat $TIME_FILE
     fi
 
     rm $TIME_FILE
@@ -249,8 +249,8 @@ elif [ "${MODE}" = "file" ]; then
 elif [ "${MODE}" = "flamegraph" ]; then
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Generating flamegraph data #######"
-	echo "Using CPU ${ZEEK_CPU} for zeek and CPU ${TCPREPLAY_CPU} for tcpreplay"
+        echo "####### Generating flamegraph data #######"
+        echo "Using CPU ${ZEEK_CPU} for zeek and CPU ${TCPREPLAY_CPU} for tcpreplay"
     fi
 
     PERF_RECORD_FILE=$(mktemp)
@@ -266,12 +266,12 @@ elif [ "${MODE}" = "flamegraph" ]; then
 
     ZEEK_PID=$(ps -ef | awk -v perfpid="${PERF_PID}" '{ if ($3 == perfpid) { print $2 } }')
     if [ ${QUIET} -eq 0 ]; then
-	echo "Zeek running on PID ${ZEEK_PID}"
+        echo "Zeek running on PID ${ZEEK_PID}"
     fi
 
     # Start replaying the data
     if [ ${QUIET} -eq 0 ]; then
-	echo "Starting replay"
+        echo "Starting replay"
     fi
     taskset --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
 
@@ -282,19 +282,19 @@ elif [ "${MODE}" = "flamegraph" ]; then
 
     echo
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Collapsing perf stack data #######"
+        echo "####### Collapsing perf stack data #######"
     fi
-    ${PERF_BINARY} script -i $PERF_RECORD_FILE | c++filt | ${FLAMEGRAPH_PATH}/stackcollapse-perf.pl > $PERF_COLLAPSED_FILE
+    ${PERF_BINARY} script -i $PERF_RECORD_FILE | c++filt | ${FLAMEGRAPH_PATH}/stackcollapse-perf.pl >$PERF_COLLAPSED_FILE
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Building normal flamegraph, writing to ${FLAMEGRAPH_PREFIX}.svg #######"
+        echo "####### Building normal flamegraph, writing to ${FLAMEGRAPH_PREFIX}.svg #######"
     fi
-    cat $PERF_COLLAPSED_FILE | ${FLAMEGRAPH_PATH}/flamegraph.pl > "${FLAMEGRAPH_PREFIX}.svg"
+    cat $PERF_COLLAPSED_FILE | ${FLAMEGRAPH_PATH}/flamegraph.pl >"${FLAMEGRAPH_PREFIX}.svg"
 
     if [ ${QUIET} -eq 0 ]; then
-	echo "####### Building reverse flamegraph, writing to ${FLAMEGRAPH_PREFIX}-reversed.svg #######"
+        echo "####### Building reverse flamegraph, writing to ${FLAMEGRAPH_PREFIX}-reversed.svg #######"
     fi
-    cat $PERF_COLLAPSED_FILE | ${FLAMEGRAPH_PATH}/flamegraph.pl --reverse > "${FLAMEGRAPH_PREFIX}-reversed.svg"
+    cat $PERF_COLLAPSED_FILE | ${FLAMEGRAPH_PATH}/flamegraph.pl --reverse >"${FLAMEGRAPH_PREFIX}-reversed.svg"
 
     rm $PERF_RECORD_FILE
     rm $PERF_COLLAPSED_FILE

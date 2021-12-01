@@ -2,6 +2,7 @@
 # for each of the workers in a load-balanced setup.
 import ZeekControl.plugin as PluginBase
 
+
 class BrokerMetricsPort(PluginBase.Plugin):
     def __init__(self):
         super(BrokerMetricsPort, self).__init__(apiversion=1)
@@ -16,7 +17,8 @@ class BrokerMetricsPort(PluginBase.Plugin):
         return 1
 
     def options(self):
-        return [("base_worker_port", "int", 4050, "Base port for the workers to use")]
+        return [("base_worker_port", "int", 4050,
+                 "Base port for the workers to use")]
 
     def init(self):
         port = self.getOption("base_worker_port")

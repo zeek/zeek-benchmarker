@@ -100,7 +100,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     crond
 
     # disable checksums for t-rex data to process correctly
-    echo "redef ignore_checksums = T;" >> ${INSTALL_PATH}/share/zeek/site/local.zeek
+    echo "redef ignore_checksums = T;" >>${INSTALL_PATH}/share/zeek/site/local.zeek
 
     # start up zeek
     echo
