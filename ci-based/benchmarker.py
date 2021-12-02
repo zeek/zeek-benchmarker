@@ -189,7 +189,7 @@ def zeek():
 
             if not found:
                 raise RuntimeError(
-                    'Failed to find valid output in pass %d'.format(i))
+                    'Failed to find valid output in pass {:d}'.format(i))
 
         avg_time = total_time / float(config['RUN_COUNT'])
         avg_mem = int(total_mem / float(config['RUN_COUNT']))
