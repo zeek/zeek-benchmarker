@@ -12,5 +12,8 @@ fi
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 echo $SCRIPT_DIR
 
+cd $SCRIPT_DIR
+cd ..
+
 /usr/local/bin/docker-compose stop builder
-/usr/local/bin/docker-compose up --force-recreate builder
+/usr/local/bin/docker-compose up --force-recreate -d builder
