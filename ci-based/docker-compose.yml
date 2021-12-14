@@ -16,15 +16,22 @@ volumes:
     external: true
   broker_test_data:
     external: true
+  letsencrypt:
+    external: true
 
 services:
   grafana:
-    image: grafana/grafana:8.0.3
+    image: grafana/grafana:8.3.3
     container_name: grafana
+    user: root
     volumes:
       - grafana_data:/var/lib/grafana
+      - letsencrypt:/etc/letsencrypt:ro
     environment:
       - GF_USERS_ALLOW_SIGNUP=false
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/etc/letsencrypt/live/${LE_HOSTNAME}/fullchain.pem
+      - GF_SERVER_CERT_KEY=/etc/letsencrypt/live/${LE_HOSTNAME}/privkey.pem
     restart: unless-stopped
     ports:
       - 3000:3000
