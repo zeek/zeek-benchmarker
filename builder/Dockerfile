@@ -20,6 +20,8 @@ RUN dnf -y install \
     kernel-devel \
     kernel-headers \
     libasan \
+    jemalloc \
+    jemalloc-devel \
     libpcap \
     libpcap-devel \
     mailx \
@@ -44,9 +46,9 @@ RUN pip3 install GitPython semantic-version
 # changes make sure to update build.sh to match.
 #
 RUN mkdir -p /benchmark/trex
-RUN curl -k -o /benchmark/trex/trex-v2.90.tar.gz https://trex-tgn.cisco.com/trex/release/v2.90.tar.gz
-RUN cd /benchmark/trex && tar -xzf trex-v2.90.tar.gz
-RUN ln -s /benchmark/trex/v2.90 /benchmark/trex/latest
+RUN curl -k -o /benchmark/trex/trex-v2.93.tar.gz https://trex-tgn.cisco.com/trex/release/v2.93.tar.gz
+RUN cd /benchmark/trex && tar -xzf trex-v2.93.tar.gz
+RUN ln -s /benchmark/trex/v2.93 /benchmark/trex/latest
 
 RUN mkdir -p /etc/postfix/sasl
 COPY configs/postfix/main.cf /etc/postfix/main.cf

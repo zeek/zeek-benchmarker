@@ -66,7 +66,7 @@ echo "=== Configuring build ==="
 cd ${SOURCE_PATH}
 HEAD_COMMIT=$(git rev-parse HEAD)
 START_TIME=$(date)
-./configure --generator=Ninja --build-type=relwithdebinfo --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
+./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
 # build/install
 echo
