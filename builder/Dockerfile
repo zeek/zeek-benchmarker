@@ -7,6 +7,7 @@ RUN dnf config-manager --set-enabled powertools
 RUN dnf -y update
 RUN dnf -y install \
     bison \
+    bzip2 \
     cmake \
     cronie \
     curl \
@@ -20,8 +21,6 @@ RUN dnf -y install \
     kernel-devel \
     kernel-headers \
     libasan \
-    jemalloc \
-    jemalloc-devel \
     libpcap \
     libpcap-devel \
     mailx \
@@ -49,6 +48,11 @@ RUN mkdir -p /benchmark/trex
 RUN curl -k -o /benchmark/trex/trex-v2.93.tar.gz https://trex-tgn.cisco.com/trex/release/v2.93.tar.gz
 RUN cd /benchmark/trex && tar -xzf trex-v2.93.tar.gz
 RUN ln -s /benchmark/trex/v2.93 /benchmark/trex/latest
+
+RUN curl -k -L -o /benchmark/jemalloc-5.2.1.tar.bz2 https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2
+RUN cd /benchmark && tar -xjf jemalloc-5.2.1.tar.bz2
+RUN cd /benchmark/jemalloc-5.2.1 && ./configure --enable-prof --with-lg-page=12
+RUN cd /benchmark/jemalloc-5.2.1 && make install
 
 RUN mkdir -p /etc/postfix/sasl
 COPY configs/postfix/main.cf /etc/postfix/main.cf
