@@ -1,7 +1,7 @@
 FROM centos:8
 
 RUN dnf -y install epel-release dnf-plugins-core
-RUN dnf config-manager --set-enabled PowerTools
+RUN dnf config-manager --set-enabled powertools
 RUN dnf -y update
 RUN dnf -y install \
     openssl \
