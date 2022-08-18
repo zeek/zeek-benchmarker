@@ -51,7 +51,7 @@ postfix start
 
 # clone master
 echo
-echo "=== Cloning Zeek master branch ==="
+echo "=== Cloning Zeek ${BRANCH} branch ==="
 git clone --branch ${BRANCH} --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || send_error_email "Git clone of zeek branch failed"
 
 # clone af_packet if it doesn't exist
@@ -127,7 +127,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/latest
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 4 -d ${RUN_TIME} --nc
+    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 8 -d ${RUN_TIME} --nc
 
 fi
 
