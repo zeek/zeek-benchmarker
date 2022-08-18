@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+GRAFANA_DASHBOARD=https://localhost:3000
 SCRIPT_PATH=/benchmark
 INSTALL_PATH=${SCRIPT_PATH}/install
 SOURCE_PATH=${SCRIPT_PATH}/zeek
@@ -64,6 +65,7 @@ fi
 echo
 echo "=== Configuring build ==="
 cd ${SOURCE_PATH}
+HEAD_COMMIT_FULL=$(git log -1 --pretty="%H %B")
 HEAD_COMMIT=$(git rev-parse HEAD)
 START_TIME=$(date)
 ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
@@ -149,7 +151,25 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
 fi
 
-send_email "Builder benchmark completed" "Builder pass was completed for commit ${HEAD_COMMIT} started at ${START_TIME}."
+END_TIME=$(date)
+ST_EPOCH=$(($(date --date="${START_TIME}" +"%s")-1800))
+ST_EPOCH=$((${ST_EPOCH}*1000))
+ET_EPOCH=$(($(date --date="${END_TIME}" +"%s")+1800))
+ET_EPOCH=$((${ET_EPOCH}*1000))
+read -r -d '' RESULT_EMAIL <<-EOF
+Builder benchmark pass was completed.
+
+Commit:
+${HEAD_COMMIT_FULL}
+https://github.com/zeek/zeek/commit/${HEAD_COMMIT}
+
+Run started: ${START_TIME}
+Run finished: ${END_TIME}
+Grafana: ${GRAFANA_DASHBOARD}?orgId=1&from=${ST_EPOCH}&to=${ET_EPOCH}
+
+EOF
+
+send_email "Builder benchmark completed" "${RESULT_EMAIL}"
 
 # This shouldn't be necessary but flush postfix and sleep for a bit so any email
 # gets out of the queue before shutting down and destroying the container.
