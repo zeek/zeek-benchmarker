@@ -154,10 +154,10 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 fi
 
 END_TIME=$(date)
-ST_EPOCH=$(($(date --date="${START_TIME}" +"%s")-1800))
-ST_EPOCH=$((${ST_EPOCH}*1000))
-ET_EPOCH=$(($(date --date="${END_TIME}" +"%s")+1800))
-ET_EPOCH=$((${ET_EPOCH}*1000))
+ST_EPOCH=$(($(date --date="${START_TIME}" +"%s") - 1800))
+ST_EPOCH=$((${ST_EPOCH} * 1000))
+ET_EPOCH=$(($(date --date="${END_TIME}" +"%s") + 1800))
+ET_EPOCH=$((${ET_EPOCH} * 1000))
 read -r -d '' RESULT_EMAIL <<-EOF
 Builder benchmark pass was completed.
 
