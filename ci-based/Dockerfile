@@ -1,17 +1,7 @@
-FROM centos:8
+FROM ubuntu:22.04
 
-RUN dnf -y install epel-release dnf-plugins-core
-RUN dnf config-manager --set-enabled powertools
-RUN dnf -y update
-RUN dnf -y install \
-    openssl \
-    python3 \
-    iproute \
-    perf \
-    tcpreplay \
-    time
-RUN dnf clean all
-RUN rm -rf /var/cache/dnf
+RUN apt-get update -y
+RUN apt-get install -y openssl python3 iproute2 tcpreplay time linux-tools-common
 
 RUN mkdir /benchmarker
 WORKDIR /benchmarker
