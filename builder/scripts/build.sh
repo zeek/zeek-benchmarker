@@ -68,7 +68,7 @@ cd ${SOURCE_PATH}
 HEAD_COMMIT_FULL=$(git log -1 --pretty="%H %B")
 HEAD_COMMIT=$(git rev-parse HEAD)
 START_TIME=$(date)
-./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
+./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
 # build/install
 echo
@@ -83,7 +83,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     echo
     echo "=== Copying zeekctl configuration ==="
     cp ${SCRIPT_PATH}/configs/zeekctl/*.cfg ${INSTALL_PATH}/etc
-    cp ${SCRIPT_PATH}/configs/zeekctl/broker_metrics_port.py ${INSTALL_PATH}/lib64/zeek/python/zeekctl/plugins
+    cp ${SCRIPT_PATH}/configs/zeekctl/broker_metrics_port.py ${INSTALL_PATH}/lib/zeek/python/zeekctl/plugins
 
     # We need a couple of network interfaces to run t-rex against, but we
     # unfortunately can't do this as part of the Dockerfile due to
@@ -99,7 +99,7 @@ if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     # We can't run cron from systemd inside a docker container so just start
     # it up manually
     echo "*/5 * * * * /usr/local/zeek/bin/zeekctl cron" | crontab -
-    crond
+    cron
 
     # disable checksums for t-rex data to process correctly
     echo "redef ignore_checksums = T;" >>${INSTALL_PATH}/share/zeek/site/local.zeek
