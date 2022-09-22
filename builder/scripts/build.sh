@@ -115,6 +115,11 @@ fi
 
 if [ ${SKIP_TREX:-0} -ne 1 ]; then
 
+    # This symlink is required to run t-rex in ASTF mode.
+    if [ ! -e /usr/lib/x86_64-linux-gnu/liblibc.a ]; then
+	ln -s /usr/lib/x86_64-linux-gnu/libc.a /usr/lib/x86_64-linux-gnu/liblibc.a
+    fi
+
     # start up t-rex
     #
     # explanation of options here:
@@ -129,7 +134,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/latest
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml -f cap2/sfr3.yaml -m 8 -d ${RUN_TIME} --nc
+    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml --astf -f astf/sfr.py -m 4 -d ${RUN_TIME} --nc
 
 fi
 
