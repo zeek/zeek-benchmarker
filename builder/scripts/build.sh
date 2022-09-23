@@ -62,16 +62,19 @@ cd ${SOURCE_PATH}
 HEAD_COMMIT_FULL=$(git log -1 --pretty="%H %B")
 HEAD_COMMIT=$(git rev-parse HEAD)
 START_TIME=$(date)
-./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
-# build/install
-echo
-echo "=== Building and installing ==="
-cd build
-ninja install || send_error_email "Build failed"
-export PATH=${INSTALL_PATH}/bin:${PATH}
+if [ ${SKIP_BUILD:-0} -ne 1 ]; then
+    ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
-if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
+    # build/install
+    echo
+    echo "=== Building and installing ==="
+    cd build
+    ninja install || send_error_email "Build failed"
+    export PATH=${INSTALL_PATH}/bin:${PATH}
+fi
+
+if [ ${SKIP_BUILD:-0} -ne 1 -a ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
     # copy zeekctl config
     echo
@@ -132,7 +135,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
 
 fi
 
-if [ ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
+if [ ${SKIP_BUILD:-0} -ne 1 -a ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
     echo
     echo "=== Stopping zeek ==="
