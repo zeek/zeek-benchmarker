@@ -10,6 +10,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     cron \
     curl \
     flex \
+    gawk \
     gcc \
     g++ \
     gdb \
@@ -24,7 +25,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     net-tools \
     ninja-build \
     pciutils \
-    postfix \
     python3 \
     python3-dev \
     python3-pip \
@@ -32,6 +32,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-semantic-version \
     python3-yaml \
     rsync \
+    ssmtp \
     swig \
     tar \
     vim \
@@ -49,12 +50,8 @@ RUN curl -k -o /benchmark/trex/trex-v2.99.tar.gz https://trex-tgn.cisco.com/trex
 RUN cd /benchmark/trex && tar -xzf trex-v2.99.tar.gz
 RUN ln -s /benchmark/trex/v2.99 /benchmark/trex/latest
 
-RUN mkdir -p /etc/postfix/sasl
-COPY configs/postfix/main.cf /etc/postfix/main.cf
-COPY configs/postfix/sasl_passwd /etc/postfix/sasl/sasl_passwd
-RUN chmod 644 /etc/postfix/main.cf
-RUN postmap /etc/postfix/sasl/sasl_passwd
-RUN chmod 600 /etc/postfix/sasl/*
+COPY configs/ssmtp/ssmtp.conf /etc/ssmtp/ssmtp.conf
+COPY configs/ssmtp/revaliases /etc/ssmtp/revaliases
 
 # Set the working dir for when the container starts up. This can
 # be reset via docker-compose.yml as well.

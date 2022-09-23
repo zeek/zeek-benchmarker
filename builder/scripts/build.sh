@@ -12,8 +12,8 @@ CURRENT_DATE=$(date +%Y-%m-%d)
 
 # Steal some email information from the zeekctl.cfg file so we don't have to
 # duplicate it here
-MAIL_FROM=$(awk '/MailFrom/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
-MAIL_TO=$(awk '/MailTo/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
+MAIL_FROM=$(gawk '/MailFrom\s+=/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
+MAIL_TO=$(gawk '/MailTo\s+=/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
 
 BRANCH=master
 RUN_TIME=259200
@@ -21,8 +21,9 @@ RUN_TIME=259200
 function send_email() {
 
     sendmail "${MAIL_TO}" <<EOF
-From: ${MAIL_FROM}
+From: OS-Perf-2 Benchmarker <${MAIL_FROM}>
 Subject: ${1}
+
 ${2}
 EOF
 
@@ -31,23 +32,16 @@ EOF
 function send_error_email() {
 
     sendmail "${MAIL_TO}" <<EOF
-From: ${MAIL_FROM}
+From: OS-Perf-2 Benchmarker <${MAIL_FROM}>
 Subject: Builder benchmark pass failed
+
 ${2}
 EOF
 
-    postfix flush
+    # Sleep for a few seconds to let the email send
     sleep 10
-    postfix stop
     exit 1
-
 }
-
-# We need postfix for a few things to send error messages externally, so start it
-# up before getting started.
-echo
-echo "=== Starting postfix ==="
-postfix start
 
 # clone master
 echo
@@ -163,6 +157,7 @@ ST_EPOCH=$(($(date --date="${START_TIME}" +"%s") - 1800))
 ST_EPOCH=$((${ST_EPOCH} * 1000))
 ET_EPOCH=$(($(date --date="${END_TIME}" +"%s") + 1800))
 ET_EPOCH=$((${ET_EPOCH} * 1000))
+
 read -r -d '' RESULT_EMAIL <<-EOF
 Builder benchmark pass was completed.
 
@@ -180,10 +175,8 @@ send_email "Builder benchmark completed" "${RESULT_EMAIL}"
 
 # This shouldn't be necessary but flush postfix and sleep for a bit so any email
 # gets out of the queue before shutting down and destroying the container.
-echo "=== Flushing and shutting down postfix (10s delay) ==="
-postfix flush
+echo "=== Sleeping to let email send (10s delay) ==="
 sleep 10
-postfix stop
 
 echo
 echo "=== Done ==="
