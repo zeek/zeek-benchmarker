@@ -1,8 +1,16 @@
 FROM ubuntu:22.04
 
 RUN apt-get update -y
-RUN apt-get install -y openssl python3 iproute2 tcpreplay time linux-tools-common
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    iproute2 \
+    libmaxminddb0 \
+    linux-tools-common \
+    openssl \
+    python3 \
+    tcpreplay \
+    time
 
-RUN mkdir /benchmarker
-WORKDIR /benchmarker
-COPY random.seed /benchmarker
+RUN mkdir -p /benchmark
+COPY random.seed /benchmark
+
+WORKDIR /benchmark
