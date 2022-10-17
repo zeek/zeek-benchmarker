@@ -169,7 +169,7 @@ def zeek():
 
         for i in range(config['RUN_COUNT']):
             proc = subprocess.Popen([
-                '/usr/local/bin/docker-compose', 'up', '--no-log-prefix',
+                '/usr/bin/docker-compose', 'up', '--no-log-prefix',
                 '--force-recreate', docker_image
             ],
                                     env=docker_env,
@@ -280,7 +280,7 @@ def broker():
 
         # Run benchmark
         proc = subprocess.Popen([
-            '/usr/local/bin/docker-compose', 'up', '--no-log-prefix',
+            '/usr/bin/docker-compose', 'up', '--no-log-prefix',
             '--force-recreate', docker_image
         ],
                                 env=docker_env,
