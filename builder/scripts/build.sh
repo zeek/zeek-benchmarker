@@ -4,7 +4,6 @@ GRAFANA_DASHBOARD=https://localhost:3000
 SCRIPT_PATH=/benchmark
 INSTALL_PATH=${SCRIPT_PATH}/install
 SOURCE_PATH=${SCRIPT_PATH}/zeek
-AF_PACKET_PATH=${SCRIPT_PATH}/zeek-af_packet-plugin
 
 # Save this off at the start of the run because we're going to need it for storing
 # logs at the end of the run
@@ -48,14 +47,7 @@ echo
 echo "=== Cloning Zeek ${BRANCH} branch ==="
 git clone --branch ${BRANCH} --recursive https://github.com/zeek/zeek ${SOURCE_PATH} || send_error_email "Git clone of zeek branch failed"
 
-# clone af_packet if it doesn't exist
-if [ ! -d ${AF_PACKET_PATH} ]; then
-    echo
-    echo "=== Cloning AF_Packet plugin ==="
-    git clone --recursive https://github.com/j-gras/zeek-af_packet-plugin ${AF_PACKET_PATH} || send_error_email "Git clone of zeek-af_packet-plugin failed"
-fi
-
-# configure master with af_packet plugin
+# configure a build
 echo
 echo "=== Configuring build ==="
 cd ${SOURCE_PATH}
@@ -64,7 +56,7 @@ HEAD_COMMIT=$(git rev-parse HEAD)
 START_TIME=$(date)
 
 if [ ${SKIP_BUILD:-0} -ne 1 ]; then
-    ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --include-plugins=${AF_PACKET_PATH} --prefix=${INSTALL_PATH} || send_error_email "configure failed"
+    ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
     # build/install
     echo
