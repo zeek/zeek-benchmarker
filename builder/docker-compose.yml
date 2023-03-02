@@ -1,12 +1,5 @@
 version: '3.9'
 
-networks:
-  zeek-builder:
-    ipam:
-      driver: default
-      config:
-        - subnet: "172.16.3.0/24"
-
 # These are created with
 # docker volume create --driver local \
 #    --opt type=none \
@@ -32,9 +25,6 @@ services:
       - zeek_logs:/benchmark/zeek_logs
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh
-    networks:
-      zeek-builder:
-        ipv4_address: 172.16.3.4
-    expose:
-      - 4040-4042/tcp
-      - 4051-4058/tcp
+    ports:
+      - 127.0.0.1:4040-4042:4040-4042/tcp
+      - 127.0.0.1:4051-4058:4051-4058/tcp
