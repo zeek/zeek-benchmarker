@@ -106,7 +106,7 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
 
     # This symlink is required to run t-rex in ASTF mode.
     if [ ! -e /usr/lib/x86_64-linux-gnu/liblibc.a ]; then
-	ln -s /usr/lib/x86_64-linux-gnu/libc.a /usr/lib/x86_64-linux-gnu/liblibc.a
+        ln -s /usr/lib/x86_64-linux-gnu/libc.a /usr/lib/x86_64-linux-gnu/liblibc.a
     fi
 
     # start up t-rex

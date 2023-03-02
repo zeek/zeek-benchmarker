@@ -1,0 +1,5 @@
+[flake8]
+max_line_length = 100
+# E203: whitespace before ':' (black / flake8 disagreement)
+# W503: line break before binary operator (black / flake8 disagreement)
+ignore=E203,W503
