@@ -26,5 +26,4 @@ services:
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh
     ports:
-      - 127.0.0.1:4040-4042:4040-4042/tcp
-      - 127.0.0.1:4051-4058:4051-4058/tcp
+      - 127.0.0.1:4041:4041/tcp
