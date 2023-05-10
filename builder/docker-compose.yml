@@ -23,6 +23,9 @@ services:
       - ./configs:/benchmark/configs:ro
       - ./scripts:/benchmark/scripts:ro
       - zeek_logs:/benchmark/zeek_logs
+    environment:
+      - ZEEK_BRANCH=master
+      - ZEEK_RUN_LENGTH=3600
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh
     ports:

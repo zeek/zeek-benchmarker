@@ -14,8 +14,8 @@ CURRENT_DATE=$(date +%Y-%m-%d)
 MAIL_FROM=$(gawk '/MailFrom\s+=/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
 MAIL_TO=$(gawk '/MailTo\s+=/ {print $3}' ${SCRIPT_PATH}/configs/zeekctl/zeekctl.cfg)
 
-BRANCH=master
-RUN_TIME=259200
+BRANCH=${ZEEK_BRANCH:-master}
+RUN_TIME=${ZEEK_RUN_LENGTH:-3600}
 
 function send_email() {
 
