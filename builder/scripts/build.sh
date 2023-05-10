@@ -53,7 +53,6 @@ echo "=== Configuring build ==="
 cd ${SOURCE_PATH}
 HEAD_COMMIT_FULL=$(git log -1 --pretty="%H %B")
 HEAD_COMMIT=$(git rev-parse HEAD)
-START_TIME=$(date)
 
 if [ ${SKIP_BUILD:-0} -ne 1 ]; then
     ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --prefix=${INSTALL_PATH} || send_error_email "configure failed"
@@ -65,6 +64,8 @@ if [ ${SKIP_BUILD:-0} -ne 1 ]; then
     ninja install || send_error_email "Build failed"
     export PATH=${INSTALL_PATH}/bin:${PATH}
 fi
+
+START_TIME=$(date)
 
 if [ ${SKIP_BUILD:-0} -ne 1 -a ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 
@@ -148,9 +149,9 @@ if [ ${SKIP_BUILD:-0} -ne 1 -a ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
 fi
 
 END_TIME=$(date)
-ST_EPOCH=$(($(date --date="${START_TIME}" +"%s") - 1800))
+ST_EPOCH=$(($(date --date="${START_TIME}" +"%s") - 600))
 ST_EPOCH=$((${ST_EPOCH} * 1000))
-ET_EPOCH=$(($(date --date="${END_TIME}" +"%s") + 1800))
+ET_EPOCH=$(($(date --date="${END_TIME}" +"%s") + 600))
 ET_EPOCH=$((${ET_EPOCH} * 1000))
 
 read -r -d '' RESULT_EMAIL <<-EOF
