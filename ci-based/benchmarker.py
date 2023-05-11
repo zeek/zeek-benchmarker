@@ -118,6 +118,43 @@ def parse_request(req):
     return req_vals
 
 
+def build_docker_env(target, config, req_vals, work_path, filename):
+    docker_env = {
+        "DATA_FILE_NAME": config["DATA_FILE"],
+        "BUILD_FILE_NAME": "",
+        "BUILD_FILE_PATH": "",
+    }
+
+    if req_vals["remote"]:
+        docker_image = f"{target}-remote"
+        file_path = os.path.join(work_path, filename)
+        r = requests.get(req_vals["build_url"], allow_redirects=True)
+        if not r:
+            raise RuntimeError("Failed to download build file")
+
+        open(file_path, "wb").write(r.content)
+        open(f"{file_path:s}.sha256", "w").write(
+            "{:s} {:s}".format(req_vals["build_hash"], file_path)
+        )
+
+        # Validate checksum of file before untarring it. There is a module in python
+        # to do this, but I'm not going to read the whole file into memory to do it.
+        ret = subprocess.call(
+            ["sha256sum", "-c", f"{file_path:s}.sha256"],
+            stdout=subprocess.DEVNULL,
+        )
+        if ret:
+            raise RuntimeError("Failed to validate build file checksum")
+
+        docker_env["BUILD_FILE_PATH"] = work_path
+        docker_env["BUILD_FILE_NAME"] = filename
+    else:
+        docker_image = f"{target}-local"
+        docker_env["BUILD_FILE_PATH"] = req_vals["build_url"][7:]
+
+    return (docker_image, docker_env)
+
+
 @app.route("/zeek", methods=["POST"])
 def zeek():
     req_vals = parse_request(request)
@@ -133,39 +170,10 @@ def zeek():
     try:
         os.mkdir(work_path, mode=0o700)
 
-        docker_env = {
-            "DATA_FILE_NAME": config["DATA_FILE"],
-            "BUILD_FILE_NAME": "",
-            "BUILD_FILE_PATH": "",
-            "ZEEKCPUS": ",".join(map(str, config["CPU_SET"])),
-        }
-
-        if req_vals["remote"]:
-            docker_image = "zeek-remote"
-            file_path = os.path.join(work_path, filename)
-            r = requests.get(req_vals["build_url"], allow_redirects=True)
-            if not r:
-                raise RuntimeError("Failed to download build file")
-
-            open(file_path, "wb").write(r.content)
-            open(f"{file_path:s}.sha256", "w").write(
-                "{:s} {:s}".format(req_vals["build_hash"], file_path)
-            )
-
-            # Validate checksum of file before untarring it. There is a module in python
-            # to do this, but I'm not going to read the whole file into memory to do it.
-            ret = subprocess.call(
-                ["sha256sum", "-c", f"{file_path:s}.sha256"],
-                stdout=subprocess.DEVNULL,
-            )
-            if ret:
-                raise RuntimeError("Failed to validate build file checksum")
-
-            docker_env["BUILD_FILE_PATH"] = work_path
-            docker_env["BUILD_FILE_NAME"] = filename
-        else:
-            docker_image = "zeek-local"
-            docker_env["BUILD_FILE_PATH"] = req_vals["build_url"][7:]
+        (docker_image, docker_env) = build_docker_env(
+            "zeek", config, req_vals, work_path, filename
+        )
+        docker_env["ZEEKCPUS"] = ",".join(map(str, config["CPU_SET"]))
 
         total_time = 0
         total_mem = 0
@@ -261,38 +269,9 @@ def broker():
     try:
         os.mkdir(work_path, mode=0o700)
 
-        docker_env = {
-            "DATA_FILE_NAME": config["BROKER_CONFIG_FILE_NAME"],
-            "BUILD_FILE_NAME": "",
-            "BUILD_FILE_PATH": "",
-        }
-
-        if req_vals["remote"]:
-            docker_image = "broker-remote"
-            file_path = os.path.join(work_path, filename)
-            r = requests.get(req_vals["build_url"], allow_redirects=True)
-            if not r:
-                raise RuntimeError("Failed to download build file")
-
-            open(file_path, "wb").write(r.content)
-            open(f"{file_path:s}.sha256", "w").write(
-                "{:s} {:s}".format(req_vals["build_hash"], file_path)
-            )
-
-            # Validate checksum of file before untarring it. There is a module in python
-            # to do this, but I'm not going to read the whole file into memory to do it.
-            ret = subprocess.call(
-                ["sha256sum", "-c", f"{file_path:s}.sha256"],
-                stdout=subprocess.DEVNULL,
-            )
-            if ret:
-                raise RuntimeError("Failed to validate checksum of file")
-
-            docker_env["BUILD_FILE_PATH"] = work_path
-            docker_env["BUILD_FILE_NAME"] = filename
-        else:
-            docker_image = "broker-local"
-            docker_env["BUILD_FILE_PATH"] = req_vals["build_url"][7:]
+        (docker_image, docker_env) = build_docker_env(
+            "broker", config, req_vals, work_path, filename
+        )
 
         # Run benchmark
         proc = subprocess.Popen(
