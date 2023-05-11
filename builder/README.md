@@ -43,6 +43,10 @@ to cron:
 docker-compose rm -f builder && docker-compose up -d builder
 ```
 
+The `scripts/cron.sh` script exists as well to automate running a build every 5
+days from `cron`. It takes into account that cron doesn't handle the end of
+months very well, and can be called directly from a crontab instead.
+
 ## TODO
 
 - Default graph configurations for Grafana
