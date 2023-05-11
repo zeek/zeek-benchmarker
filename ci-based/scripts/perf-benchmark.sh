@@ -189,7 +189,7 @@ if [ "${MODE}" = "intf" ]; then
     fi
 
     # Start zeek, find it's PID, then wait 10s to let it reach a steady state
-    taskset --cpu-list $ZEEK_CPU /usr/bin/time -f "%M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS &
+    taskset --all-tasks --cpu-list $ZEEK_CPU /usr/bin/time -f "%M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS &
     TIME_PID=$!
 
     sleep 5
@@ -209,7 +209,7 @@ if [ "${MODE}" = "intf" ]; then
     if [ ${QUIET} -eq 0 ]; then
         echo "Starting replay"
     fi
-    taskset --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
+    taskset --all-tasks --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
 
     # Capture the average CPU usage of the process
     CPU_USAGE=$(ps -p $ZEEK_PID -o %cpu=)
@@ -233,7 +233,7 @@ elif [ "${MODE}" = "file" ]; then
         echo "####### Testing reading the file directly from disk #######"
         echo "Using CPU ${ZEEK_CPU} for zeek"
     fi
-    taskset --cpu-list $ZEEK_CPU /usr/bin/time -f "%e %M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS -r $DATA_FILE
+    taskset --all-tasks --cpu-list $ZEEK_CPU /usr/bin/time -f "%e %M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS -r $DATA_FILE
     TIME_PID=$!
     ZEEK_PID=$(ps -ef | awk -v timepid="${TIME_PID}" '{ if ($3 == timepid) { print $2 } }')
     renice -20 -p $ZEEK_PID >/dev/null
@@ -273,7 +273,7 @@ elif [ "${MODE}" = "flamegraph" ]; then
     if [ ${QUIET} -eq 0 ]; then
         echo "Starting replay"
     fi
-    taskset --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
+    taskset --all-tasks --cpu-list $TCPREPLAY_CPU tcpreplay --preload-pcap -i $INTERFACE -q $DATA_FILE
 
     # Kill everything
     echo
