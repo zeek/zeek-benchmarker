@@ -105,7 +105,8 @@ def parse_request(req):
     # Normalize the branch name to remove any non-alphanumeric characters so it's
     # safe to use as part of a path name. This is way overkill, but it's safer.
     # Docker requires it to be all lowercase as well.
-    normalized_branch = "".join(x for x in branch if x.isalnum()).lower()
+    req_vals["original_branch"] = "".join(x for x in branch if x.isalnum()).lower()
+    normalized_branch = req_vals["original_branch"]
     if remote_build:
         normalized_branch += f"-{int(hmac_timestamp):d}-{int(time.time()):d}"
     else:
@@ -231,7 +232,7 @@ def zeek():
                     avg_time,
                     avg_mem,
                     req_vals.get("commit", ""),
-                    req_vals.get("normalized_branch", ""),
+                    req_vals.get("original_branch", ""),
                 ],
             )
             db_conn.commit()
@@ -339,7 +340,7 @@ def broker():
                     log_data["worker_receiving"],
                     log_data["system"],
                     req_vals.get("commit", ""),
-                    req_vals.get("normalized_branch", ""),
+                    req_vals.get("original_branch", ""),
                 ],
             )
 
