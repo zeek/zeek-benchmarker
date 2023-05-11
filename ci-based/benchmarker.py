@@ -212,7 +212,7 @@ def zeek():
                        "id" integer primary key autoincrement not null,
                        "stamp" datetime default (datetime('now', 'localtime')),
                        "time_spent" float not null,
-                       "memory_used" float not null, "sha" text, "Branch" text);"""
+                       "memory_used" float not null, "sha" text, "branch" text);"""
             )
 
             c.execute(
