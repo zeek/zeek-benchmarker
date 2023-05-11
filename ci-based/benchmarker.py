@@ -226,12 +226,12 @@ def zeek():
             )
 
             c.execute(
-                "insert into zeek (time_spent, memory_used, sha) values (?,?,?)",
+                "insert into zeek (time_spent, memory_used, sha, branch) values (?,?,?,?)",
                 [
                     avg_time,
                     avg_mem,
                     req_vals.get("commit", ""),
-                    req_vals("normalized_branch", ""),
+                    req_vals.get("normalized_branch", ""),
                 ],
             )
             db_conn.commit()
@@ -327,7 +327,7 @@ def broker():
                        manager_sending, manager_receiving,
                        proxy_sending, proxy_receiving,
                        worker_sending, worker_receiving,
-                       system, sha) values (?,?,?,?,?,?,?,?,?,?)""",
+                       system, sha, branch) values (?,?,?,?,?,?,?,?,?,?,?)""",
                 [
                     log_data["logger_sending"],
                     log_data["logger_receiving"],
@@ -338,8 +338,8 @@ def broker():
                     log_data["worker_sending"],
                     log_data["worker_receiving"],
                     log_data["system"],
-                    req_vals["commit"],
-                    req_vals["normalized_branch"],
+                    req_vals.get("commit", ""),
+                    req_vals.get("normalized_branch", ""),
                 ],
             )
 
