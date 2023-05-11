@@ -53,7 +53,9 @@ def parse_request(req):
         return "Build argument required", 400
 
     # Validate that the build URL is either from Cirrus, or a local file from the local host.
-    if build_url.startswith("https://api.cirrus-ci.com/v1/artifact/build"):
+    if build_url.startswith(
+        "https://api.cirrus-ci.com/v1/artifact/build"
+    ) or build_url.startswith("https://api.cirrus-ci.com/v1/artifact/task"):
         remote_build = True
 
         # Remote requests are required to be signed with HMAC and have an sha256 hash
