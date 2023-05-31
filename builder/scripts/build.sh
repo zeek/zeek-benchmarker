@@ -55,13 +55,13 @@ HEAD_COMMIT_FULL=$(git log -1 --pretty="%H %B")
 HEAD_COMMIT=$(git rev-parse HEAD)
 
 if [ ${SKIP_BUILD:-0} -ne 1 ]; then
-    ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --disable-spicy --prefix=${INSTALL_PATH} || send_error_email "configure failed"
+    ./configure --generator=Ninja --build-type=relwithdebinfo --enable-jemalloc --disable-python --disable-broker-tests --disable-btest --disable-btest-pcaps --prefix=${INSTALL_PATH} || send_error_email "configure failed"
 
     # build/install
     echo
     echo "=== Building and installing ==="
     cd build
-    ninja install || send_error_email "Build failed"
+    ninja -j 8 install || send_error_email "Build failed"
     export PATH=${INSTALL_PATH}/bin:${PATH}
 fi
 
