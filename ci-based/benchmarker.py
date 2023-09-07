@@ -1,18 +1,18 @@
+import hashlib
 import hmac
+import io
 import os
-import requests
+import re
 import shutil
+import sqlite3
 import subprocess
 import sys
-import hashlib
 import time
 import traceback
-import sqlite3
-import re
-import io
-import yaml
 from datetime import datetime, timedelta
 
+import requests
+import yaml
 from flask import Flask, request
 
 with open("config.yml") as config_file:
