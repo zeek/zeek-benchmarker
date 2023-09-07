@@ -4,6 +4,7 @@ import requests
 import shutil
 import subprocess
 import sys
+import hashlib
 import time
 import traceback
 import sqlite3
@@ -129,22 +130,21 @@ def build_docker_env(target, config, req_vals, work_path, filename):
     if req_vals["remote"]:
         docker_image = f"{target}-remote"
         file_path = os.path.join(work_path, filename)
-        r = requests.get(req_vals["build_url"], allow_redirects=True)
-        if not r:
-            raise RuntimeError("Failed to download build file")
+        r = requests.get(req_vals["build_url"], allow_redirects=True, stream=True)
+        if not r.ok:
+            raise RuntimeError(f"Failed to download build file: {r.status_code}")
 
-        open(file_path, "wb").write(r.content)
-        open(f"{file_path:s}.sha256", "w").write(
-            "{:s} {:s}".format(req_vals["build_hash"], file_path)
-        )
+        # Fetch the file in chunks and compute sha256 while we do so
+        h = hashlib.sha256()
+        with open(file_path, "wb") as fp:
+            for chunk in r.iter_content(chunk_size=4096):
+                h.update(chunk)
+                fp.write(chunk)
 
-        # Validate checksum of file before untarring it. There is a module in python
-        # to do this, but I'm not going to read the whole file into memory to do it.
-        ret = subprocess.call(
-            ["sha256sum", "-c", f"{file_path:s}.sha256"],
-            stdout=subprocess.DEVNULL,
-        )
-        if ret:
+        digest = h.digest().hex()
+        app.logger.info("Downloaded %s with sha256 %s", req_vals["build_url"], digest)
+
+        if req_vals["build_hash"] != digest:
             raise RuntimeError("Failed to validate build file checksum")
 
         docker_env["BUILD_FILE_PATH"] = work_path
