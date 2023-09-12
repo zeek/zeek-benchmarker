@@ -2,6 +2,13 @@
 # making requests to benchmark remote builds.
 HMAC_KEY: unset
 
+# URL prefixes  we allow fetching build artifacts from
+ALLOWED_BUILD_URLS:
+  - https://api.cirrus-ci.com/v1/artifact/build
+  - https://api.cirrus-ci.com/v1/artifact/task
+  - http://127.0.0.1:8000/
+  - http://localhost:8000/
+
 # Filename of a pcap file used by the zeek endpoint. This should be stored in the path
 # referred to by the test_data docker volume.
 DATA_FILE: unset

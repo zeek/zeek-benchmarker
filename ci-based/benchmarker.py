@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 import requests
 import yaml
 from flask import Flask, request
+from werkzeug.exceptions import BadRequest, Forbidden
 
 with open("config.yml") as config_file:
     try:
@@ -23,6 +24,13 @@ with open("config.yml") as config_file:
         sys.exit(1)
 
 app = Flask(__name__)
+
+
+def is_allowed_build_url_prefix(url):
+    """
+    Is the given url a prefix in ALLOWED_BUILD_URLS
+    """
+    return any(url.startswith(allowed) for allowed in config["ALLOWED_BUILD_URLS"])
 
 
 def verify_hmac(request_path, timestamp, request_digest, build_hash):
@@ -43,69 +51,72 @@ def verify_hmac(request_path, timestamp, request_digest, build_hash):
     return True
 
 
+def check_hmac_request(req):
+    """
+    Remote requests are required to be signed with HMAC and have an sha256 hash
+    of the build file passed with them.
+    """
+    hmac_header = req.headers.get("Zeek-HMAC", None)
+    if not hmac_header:
+        raise Forbidden("HMAC header missing from request")
+
+    hmac_timestamp = int(req.headers.get("Zeek-HMAC-Timestamp", 0))
+    if not hmac_timestamp:
+        raise Forbidden("HMAC timestamp missing from request")
+
+    # Double check that the timestamp is within the last 15 minutes UTC to avoid someone
+    # trying to reuse it.
+    ts = datetime.utcfromtimestamp(hmac_timestamp)
+    utc = datetime.utcnow()
+    delta = utc - ts
+
+    if delta > timedelta(minutes=15):
+        raise Forbidden("HMAC timestamp is outside of the valid range")
+
+    build_hash = req.args.get("build_hash", "")
+    if not build_hash:
+        raise BadRequest("Build hash argument required")
+
+    if not verify_hmac(req.path, hmac_timestamp, hmac_header, build_hash):
+        raise Forbidden("HMAC validation failed")
+
+
 def parse_request(req):
     req_vals = {}
     branch = request.args.get("branch", "")
     if not branch:
-        return "Branch argument required", 400
+        raise BadRequest("Branch argument required")
 
     build_url = request.args.get("build", None)
     if not build_url:
-        return "Build argument required", 400
+        raise BadRequest("Build argument required")
 
-    # Validate that the build URL is either from Cirrus, or a local file from the local host.
-    if build_url.startswith(
-        "https://api.cirrus-ci.com/v1/artifact/build"
-    ) or build_url.startswith("https://api.cirrus-ci.com/v1/artifact/task"):
+    req_vals["build_hash"] = request.args.get("build_hash", "")
+
+    # Validate that the build URL is allowed via the config, or local file from the local host.
+    if is_allowed_build_url_prefix(build_url):
+        check_hmac_request(request)
         remote_build = True
-
-        # Remote requests are required to be signed with HMAC and have an sha256 hash
-        # of the build file passed with them.
-        hmac_header = request.headers.get("Zeek-HMAC", None)
-        if not hmac_header:
-            return "HMAC header missing from request", 403
-
-        hmac_timestamp = int(request.headers.get("Zeek-HMAC-Timestamp", 0))
-        if not hmac_timestamp:
-            return "HMAC timestamp missing from request", 403
-
-        # Double check that the timestamp is within the last 15 minutes UTC to avoid someone
-        # trying to reuse it.
-        ts = datetime.utcfromtimestamp(hmac_timestamp)
-        utc = datetime.utcnow()
-        delta = utc - ts
-
-        if delta > timedelta(minutes=15):
-            return "HMAC timestamp is outside of the valid range", 403
-
-        req_vals["build_hash"] = request.args.get("build_hash", "")
-        if not req_vals["build_hash"]:
-            return "Build hash argument required", 400
-
-        if not verify_hmac(
-            request.path, hmac_timestamp, hmac_header, req_vals["build_hash"]
-        ):
-            return "HMAC validation failed", 403
-
     elif build_url.startswith("file://") and request.remote_addr == "127.0.0.1":
         remote_build = False
     else:
-        return "Invalid build URL", 400
+        raise BadRequest("Invalid build URL")
 
     # Validate the branch name. Disallow semi-colon and then use git's
     # method for testing for valid names.
     if ";" in branch:
-        return "Invalid branch name", 400
+        raise BadRequest("Invalid branch name")
 
     ret = subprocess.call(
         ["git", "check-ref-format", "--branch", branch], stdout=subprocess.DEVNULL
     )
     if ret:
-        return "Invalid branch name", 400
+        raise BadRequest("Invalid branch name")
 
     # Normalize the branch name to remove any non-alphanumeric characters so it's
     # safe to use as part of a path name. This is way overkill, but it's safer.
     # Docker requires it to be all lowercase as well.
+    hmac_timestamp = int(req.headers.get("Zeek-HMAC-Timestamp", 0))
     req_vals["original_branch"] = "".join(x for x in branch if x.isalnum()).lower()
     normalized_branch = req_vals["original_branch"]
     if remote_build:
@@ -159,9 +170,6 @@ def build_docker_env(target, config, req_vals, work_path, filename):
 @app.route("/zeek", methods=["POST"])
 def zeek():
     req_vals = parse_request(request)
-    if not isinstance(req_vals, dict):
-        return req_vals
-
     base_path = os.path.dirname(os.path.abspath(__file__))
     work_path = os.path.join(base_path, req_vals["normalized_branch"])
 
@@ -259,9 +267,6 @@ def zeek():
 @app.route("/broker", methods=["POST"])
 def broker():
     req_vals = parse_request(request)
-    if not isinstance(req_vals, dict):
-        return req_vals
-
     base_path = os.path.dirname(os.path.abspath(__file__))
     work_path = os.path.join(base_path, req_vals["normalized_branch"])
     filename = req_vals["build_url"].rsplit("/", 1)[1]
