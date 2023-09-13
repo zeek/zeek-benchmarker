@@ -21,6 +21,10 @@ BROKER_CONFIG_FILE_NAME: unset
 # viewing on grafana, etc.
 DATABASE_FILE: unset
 
+# Can be absolute or relative.
+WORK_DIR: ./spool
+
+
 # Set of two CPUs to be used by the zeek endpoint.
 CPU_SET:
   - 1
@@ -30,3 +34,30 @@ CPU_SET:
 # in order to average out noise in the process. A value of 3 is a reasonable balance
 # for overall runtime for each request.
 RUN_COUNT: 3
+
+ZEEK_TESTS:
+  - id: pcap-ixia-ent-data-center-2-30sec-500mbps
+    pcap_file: ixia_RamEntDataCenter2_30sec_500Mbps.pcap
+    skip: true
+
+  - id: pcap-zeek-testing-ipv6
+    pcap_file: ipv6.trace
+
+  - id: pcap-50k-tcp-conns
+    pcap_file: 50k-tcp-conns.pcap
+
+  - id: micro-misc-zeek-version
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
+
+  - id: micro-table-ops-simple-key-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/simple-key-value.zeek
+
+  - id: micro-table-ops-complex-key-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/complex-key-value.zeek
+
+  - id: micro-table-ops-copy
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/copy.zeek

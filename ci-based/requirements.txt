@@ -3,3 +3,4 @@ requests
 cryptography
 six
 pyyaml
+rq==1.15.1

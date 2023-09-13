@@ -233,7 +233,7 @@ elif [ "${MODE}" = "file" ]; then
         echo "####### Testing reading the file directly from disk #######"
         echo "Using CPU ${ZEEK_CPU} for zeek"
     fi
-    taskset --all-tasks --cpu-list $ZEEK_CPU /usr/bin/time -f "%e %M" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS -r $DATA_FILE
+    taskset --all-tasks --cpu-list $ZEEK_CPU /usr/bin/time -f "BENCHMARK_TIMING=%e;%M;%U;%S" -o $TIME_FILE $ZEEK_BUILD $ZEEK_ARGS -r $DATA_FILE
     TIME_PID=$!
     ZEEK_PID=$(ps -ef | awk -v timepid="${TIME_PID}" '{ if ($3 == timepid) { print $2 } }')
     renice -20 -p $ZEEK_PID >/dev/null

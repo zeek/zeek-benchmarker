@@ -11,8 +11,8 @@ Usage:
 """
 import argparse
 import hmac
-import time
 import logging
+import time
 
 import requests
 
@@ -77,6 +77,7 @@ def main():
             build_hash=args.build_hash,
         )
         r.raise_for_status()
+        print(r.json())
     except requests.HTTPError as e:
         logger.error("%s: %s", e.response.status_code, e.response.content)
         return 1

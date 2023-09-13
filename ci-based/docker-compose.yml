@@ -32,7 +32,9 @@ services:
       - ZEEKSEED=/benchmarker/random.seed
       - ZEEKBIN=/benchmarker/zeek/install/bin/zeek
       - ZEEK_PLUGIN_PATH=/benchmarker/zeek/install/lib/zeek/plugins
-      - DATA_FILE_NAME=${DATA_FILE_NAME}
+      - DATA_FILE_NAME=${DATA_FILE_NAME:-}
+      - BENCH_COMMAND=${BENCH_COMMAND:-}
+      - BENCH_ARGS=${BENCH_ARGS:-}
     volumes:
       - test_data:/test_data:ro
       - ./scripts:/benchmarker/scripts:ro

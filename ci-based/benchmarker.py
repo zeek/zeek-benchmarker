@@ -11,9 +11,12 @@ import time
 import traceback
 from datetime import datetime, timedelta
 
+import redis
 import requests
+import rq
 import yaml
-from flask import Flask, request
+import zeek_benchmarker.tasks
+from flask import Flask, jsonify, request
 from werkzeug.exceptions import BadRequest, Forbidden
 
 with open("config.yml") as config_file:
@@ -170,98 +173,25 @@ def build_docker_env(target, config, req_vals, work_path, filename):
 @app.route("/zeek", methods=["POST"])
 def zeek():
     req_vals = parse_request(request)
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    work_path = os.path.join(base_path, req_vals["normalized_branch"])
 
-    filename = req_vals["build_url"].rsplit("/", 1)[1]
+    # At this point we've validated the request and just
+    # enqueue it for the worker to pick up.
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    queue_name = os.getenv("RQ_QUEUE_NAME", "default")
 
-    result = None
-    try:
-        os.mkdir(work_path, mode=0o700)
+    # New connection per request, that's alright for now.
+    with redis.Redis(host=redis_host) as redis_conn:
+        q = rq.Queue(name=queue_name, connection=redis_conn)
+        job = q.enqueue(zeek_benchmarker.tasks.zeek_job, req_vals)
 
-        (docker_image, docker_env) = build_docker_env(
-            "zeek", config, req_vals, work_path, filename
+        return jsonify(
+            {
+                "job": {
+                    "id": job.id,
+                    "enqueued_at": job.enqueued_at,
+                }
+            }
         )
-        docker_env["ZEEKCPUS"] = ",".join(map(str, config["CPU_SET"]))
-
-        total_time = 0
-        total_mem = 0
-
-        for i in range(config["RUN_COUNT"]):
-            proc = subprocess.Popen(
-                [
-                    "/usr/bin/docker-compose",
-                    "up",
-                    "--no-log-prefix",
-                    "--force-recreate",
-                    docker_image,
-                ],
-                env=docker_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            if not proc:
-                raise RuntimeError("Runner failed to execute")
-
-            found = False
-            for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
-                match = re.match(r"(\d+(\.\d+)?) (\d+)", line)
-                if match:
-                    total_time += float(match.group(1))
-                    total_mem += int(match.group(3))
-                    found = True
-                    break
-
-            if not found:
-                raise RuntimeError(f"Failed to find valid output in pass {i:d}")
-
-        avg_time = total_time / float(config["RUN_COUNT"])
-        avg_mem = int(total_mem / float(config["RUN_COUNT"]))
-        log_output = """Averaged over {:d} passes:\n
-                        Time Spent: {:.3f} seconds\n
-                        Max memory usage: {:d} bytes""".format(
-            config["RUN_COUNT"], avg_time, avg_mem
-        )
-
-        if req_vals["remote"]:
-            db_conn = sqlite3.connect(config["DATABASE_FILE"])
-            c = db_conn.cursor()
-            c.execute(
-                """CREATE TABLE IF NOT EXISTS "zeek" (
-                       "id" integer primary key autoincrement not null,
-                       "stamp" datetime default (datetime('now', 'localtime')),
-                       "time_spent" float not null,
-                       "memory_used" float not null, "sha" text, "branch" text);"""
-            )
-
-            c.execute(
-                "insert into zeek (time_spent, memory_used, sha, branch) values (?,?,?,?)",
-                [
-                    avg_time,
-                    avg_mem,
-                    req_vals.get("commit", ""),
-                    req_vals.get("original_branch", ""),
-                ],
-            )
-            db_conn.commit()
-            db_conn.close()
-
-    except RuntimeError as rt_err:
-        app.logger.error(traceback.format_exc())
-        result = (str(rt_err), 500)
-    except Exception:
-        # log any other exceptions, but eat the string from them
-        app.logger.error(traceback.format_exc())
-        result = ("Failure occurred", 500)
-    else:
-        result = (log_output, 200)
-
-    subprocess.call(["docker", "container", "rm", "zeek"])
-
-    if os.path.exists(work_path):
-        shutil.rmtree(work_path)
-
-    return result
 
 
 @app.route("/broker", methods=["POST"])
