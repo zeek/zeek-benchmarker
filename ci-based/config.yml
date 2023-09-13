@@ -61,3 +61,19 @@ ZEEK_TESTS:
   - id: micro-table-ops-copy
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/table-ops/copy.zeek
+
+  - id: micro-logging-tsv-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek
+
+  - id: micro-logging-tsv-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek
+
+  - id: micro-logging-json-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek  LogAscii::use_json=T
+
+  - id: micro-logging-json-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek LogAscii::use_json=T
