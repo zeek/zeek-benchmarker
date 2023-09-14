@@ -1,4 +1,4 @@
-global n = 100000;
+global n = 500000;
 
 function f(c: count)
 	{

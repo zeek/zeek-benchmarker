@@ -9,7 +9,7 @@ type V: record {
 };
 
 global tbl: table[K] of V;
-global n = 1000000;
+global n = 2000000;
 global offset = 100000;
 
 event zeek_init()

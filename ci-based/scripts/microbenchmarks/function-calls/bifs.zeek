@@ -1,4 +1,4 @@
-global n = 1000000;
+global n = 5000000;
 
 global a4 = 1.2.3.4;
 global a6 = [ffee::1];
