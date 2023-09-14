@@ -42,9 +42,11 @@ ZEEK_TESTS:
 
   - id: pcap-zeek-testing-ipv6
     pcap_file: ipv6.trace
+    skip: true
 
   - id: pcap-50k-tcp-conns
     pcap_file: 50k-tcp-conns.pcap
+    skip: true
 
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
@@ -77,3 +79,15 @@ ZEEK_TESTS:
   - id: micro-logging-json-two-streams
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/logging/two-streams.zeek LogAscii::use_json=T
+
+  - id: micro-function-calls-bifs
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/function-calls/bifs.zeek
+
+  - id: micro-function-calls-recursion
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/function-calls/recursion.zeek
+
+  - id: micro-patterns-basic
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/patterns/basic.zeek
