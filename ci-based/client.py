@@ -25,7 +25,7 @@ class Client:
         self._session = requests.Session()
         self._hmac_key = hmac_key
 
-    def _submit_build(self, path, branch, build_url, build_hash, hmac_ts=None):
+    def _submit_build(self, *, path, branch, build_url, build_hash, commit=None, hmac_ts=None):
         """ """
         hmac_ts = int(time.time()) if hmac_ts is None else hmac_ts
         url = "/".join([self.url, path.lstrip("/")])
@@ -37,7 +37,10 @@ class Client:
         if build_hash:
             params["build_hash"] = build_hash
 
-        hmac_msg = f"/zeek-{hmac_ts:d}-{build_hash:s}\n".encode()
+        if commit:
+            params["commit"] = commit
+
+        hmac_msg = f"{path:s}-{hmac_ts:d}-{build_hash:s}\n".encode()
         hmac_digest = hmac.digest(self._hmac_key, hmac_msg, "sha256").hex()
         headers = {
             "Zeek-HMAC": hmac_digest,
@@ -48,12 +51,30 @@ class Client:
         r.raise_for_status()
         return r
 
-    def submit_zeek(self, *, branch, build_url, build_hash, hmac_ts=None):
+    def submit_zeek(self, *, branch, build_url, build_hash, commit=None, hmac_ts=None):
         """
         Submit a benchmark request to /zeek
         """
         return self._submit_build(
-            "/zeek", branch, build_url, build_hash, hmac_ts=hmac_ts
+            path="/zeek",
+            branch=branch,
+            build_url=build_url,
+            build_hash=build_hash,
+            commit=commit,
+            hmac_ts=hmac_ts
+        )
+
+    def submit_broker(self, *, branch, build_url, build_hash, commit=None, hmac_ts=None):
+        """
+        Submit a benchmark request to /broker
+        """
+        return self._submit_build(
+            path="/broker",
+            branch=branch,
+            build_url=build_url,
+            build_hash=build_hash,
+            commit=commit,
+            hmac_ts=hmac_ts
         )
 
 
@@ -63,18 +84,27 @@ def main():
     p.add_argument("--hmac-key", type=lambda s: s.encode(), default="unset")
     p.add_argument("--build-url", type=str, default="")
     p.add_argument("--build-hash", type=str, default=None, required=True)
+    p.add_argument("--commit", type=str, default=None)
+    p.add_argument("what", choices=["broker", "zeek"])
     p.add_argument("branch")
     args = p.parse_args()
 
     logging.basicConfig()
 
     c = Client(args.api_url, args.hmac_key)
+    if args.what == "zeek":
+        submit_func = c.submit_zeek
+    elif args.what == "broker":
+        submit_func = c.submit_broker
+    else:
+        raise NotImplementedError(args.what)
 
     try:
-        r = c.submit_zeek(
+        r = submit_func(
             branch=args.branch,
             build_url=args.build_url,
             build_hash=args.build_hash,
+            commit=args.commit,
         )
         r.raise_for_status()
         print(r.json())
