@@ -1,11 +1,12 @@
+import dataclasses
 import errno
 import hashlib
 import logging
 import pathlib
+import re
 import shutil
 import subprocess
 import typing
-import dataclasses
 
 import requests
 
@@ -43,16 +44,11 @@ class ContainerRunner:
     """
 
     def build_env(self, job: "Job", **kwargs) -> Env:
-        env = {}
-
-        cfg = config.get()
-
-        env["BUILD_FILE_PATH"] = job.job_dir
-        env["BUILD_FILE_NAME"] = job.build_filename
-        env["ZEEKCPUS"] = cfg.zeek_cpus
-
-        for k, v in kwargs.items():
-            env[k] = v
+        env = {
+            "BUILD_FILE_PATH": job.job_dir,
+            "BUILD_FILE_NAME": job.build_filename,
+            **kwargs,
+        }
 
         return env
 
@@ -72,8 +68,14 @@ class ContainerRunner:
             timeout=timeout,
         )
 
+    _instance: "ContainerRunner" = None
 
-CONTAINER_RUNNER = ContainerRunner()
+    @staticmethod
+    def get() -> "ContainerRunner":
+        if ContainerRunner._instance is None:
+            ContainerRunner._instance = ContainerRunner()
+
+        return ContainerRunner._instance
 
 
 @dataclasses.dataclass
@@ -211,14 +213,23 @@ class ZeekTest(typing.NamedTuple):
 
 
 class ZeekJob(Job):
+    """
+    Zeek benchmarker job.
+    """
+
     def run_zeek_test(self, t):
         if t.skip:
             logger.warning("Skipping %s", t)
             return
 
+        cr = ContainerRunner.get()
+        cfg = config.get()
+
         extra_env = {
             "BENCH_TEST_ID": t.test_id,
+            "ZEEKCPUS": cfg.zeek_cpus,
         }
+
         if t.bench_command and t.bench_args:
             extra_env["BENCH_COMMAND"] = t.bench_command
             extra_env["BENCH_ARGS"] = t.bench_args
@@ -226,15 +237,15 @@ class ZeekJob(Job):
         if t.pcap:
             extra_env["DATA_FILE_NAME"] = t.pcap
 
-        env = CONTAINER_RUNNER.build_env(self, **extra_env)
+        env = ContainerRunner.get().build_env(self, **extra_env)
 
         store = storage.get()
         for i in range(1, t.runs + 1):
             logger.debug("Running %s:%s (%d)", self.job_id, t.test_id, i)
 
             try:
-                completed = CONTAINER_RUNNER.run("zeek-remote", env)
-                result = ZeekTestResult.parse_from(i, completed.stdout)
+                proc = cr.run("zeek-remote", env)
+                result = ZeekTestResult.parse_from(i, proc.stdout)
                 logger.info(
                     "Completed %s:%s (%d) result=%s", self.job_id, t.test_id, i, result
                 )
@@ -244,13 +255,15 @@ class ZeekJob(Job):
                     result=result,
                 )
             except ResultNotFound:
-                logger.error("Missing result (%s) stdout=%s stderr=%s", completed.returncode, completed.stderr)
+                logger.error(
+                    "Missing result (%s) stdout=%s stderr=%s",
+                    proc.returncode,
+                    proc.stdout,
+                    proc.stderr,
+                )
                 return
 
-
-
     def _process(self):
-        """ """
         cfg = config.get()
         for t in cfg["ZEEK_TESTS"]:
             zeek_test = ZeekTest.from_dict(t)
@@ -263,6 +276,99 @@ def zeek_job(req_vals):
     """
     req_vals.pop("remote", None)  # consider everything a remote job.
     job = ZeekJob(job_id=get_current_job_id(), **req_vals)
+    job.sha256 = job.build_hash
+
+    cfg = config.get()
+    job.job_dir = (pathlib.Path(cfg.work_dir) / get_current_job_id()).absolute()
+
+    logger.info(
+        "Working on job %s build_url=%s sha256=%s (jobdir=%s)",
+        job.job_id,
+        job.build_url,
+        job.sha256,
+        job.job_dir,
+    )
+
+    job.process()
+
+
+class BrokerJob(Job):
+    """
+    Broker benchmarker job.
+    """
+
+    def _process(self):
+        import io
+        import sqlite3
+
+        cr = ContainerRunner.get()
+        env = cr.build_env(self)
+        proc = cr.run("broker-remote", env)
+
+        # Original code from benchmarker.py. 2023-09-14, no test data.
+        # Not sure this still works.
+        log_output = ""
+        log_data = {}
+        p = re.compile(r"zeek-recording-(.*?) \((.*?)\): (.*)s")
+        for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
+            if line.startswith("system"):
+                log_output += line
+                parts = line.split(":")
+                log_data["system"] = float(parts[1].strip()[:-1])
+            elif line.startswith("zeek"):
+                log_output += line
+                m = p.match(line)
+                if m:
+                    log_data[f"{m.group(1):s}_{m.group(2):s}"] = float(m.group(3))
+
+            cfg = config.get()
+            with sqlite3.connect(cfg["DATABASE_FILE"]) as db_conn:
+                c = db_conn.cursor()
+                c.execute(
+                    """CREATE TABLE IF NOT EXISTS "broker" (
+                           "stamp" datetime primary key default (datetime('now', 'localtime')),
+                           "logger_sending" float not null,
+                           "logger_receiving" float not null,
+                           "manager_sending" float not null,
+                           "manager_receiving" float not null,
+                           "proxy_sending" float not null,
+                           "proxy_receiving" float not null,
+                           "worker_sending" float not null,
+                           "worker_receiving" float not null,
+                           "system" float not null, "sha" text, "branch" text);"""
+                )
+
+                c.execute(
+                    """insert into broker (logger_sending, logger_receiving,
+                           manager_sending, manager_receiving,
+                           proxy_sending, proxy_receiving,
+                           worker_sending, worker_receiving,
+                           system, sha, branch) values (?,?,?,?,?,?,?,?,?,?,?)""",
+                    [
+                        log_data["logger_sending"],
+                        log_data["logger_receiving"],
+                        log_data["manager_sending"],
+                        log_data["manager_receiving"],
+                        log_data["proxy_sending"],
+                        log_data["proxy_receiving"],
+                        log_data["worker_sending"],
+                        log_data["worker_receiving"],
+                        log_data["system"],
+                        self.commit or "",
+                        self.original_branch,
+                    ],
+                )
+
+                db_conn.commit()
+                db_conn.close()
+
+
+def broker_job(req_vals):
+    """
+    Entry point for a Broker job.
+    """
+    req_vals.pop("remote", None)  # consider everything a remote job.
+    job = BrokerJob(job_id=get_current_job_id(), **req_vals)
     job.sha256 = job.build_hash
 
     cfg = config.get()

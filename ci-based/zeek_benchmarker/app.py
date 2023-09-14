@@ -1,15 +1,13 @@
 import hmac
-from datetime import datetime, timedelta
+import os
 import subprocess
 import time
-import os
+from datetime import datetime, timedelta
 
-import rq
 import redis
-from flask import Flask, jsonify, request, current_app
-
+import rq
 import zeek_benchmarker.tasks
-
+from flask import Flask, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, Forbidden
 
 
@@ -24,7 +22,7 @@ def is_allowed_build_url_prefix(url):
 def verify_hmac(request_path, timestamp, request_digest, build_hash):
     # Generate a new version of the digest on this side using the same information that the
     # caller use to generate their digest, and then compare the two for validity.
-    hmac_msg = f"{request_path:s}-{timestamp:d}-{build_hash:s}\n".encode("utf-8")
+    hmac_msg = f"{request_path:s}-{timestamp:d}-{build_hash:s}\n".encode()
     hmac_key = current_app.config["HMAC_KEY"].encode("utf-8")
     local_digest = hmac.new(hmac_key, hmac_msg, "sha256").hexdigest()
     if not hmac.compare_digest(local_digest, request_digest):
@@ -69,6 +67,9 @@ def check_hmac_request(req):
 
 
 def parse_request(req):
+    """
+    Generic request parsing.
+    """
     req_vals = {}
     branch = request.args.get("branch", "")
     if not branch:
@@ -118,42 +119,7 @@ def parse_request(req):
     return req_vals
 
 
-def build_docker_env(target, config, req_vals, work_path, filename):
-    docker_env = {
-        "DATA_FILE_NAME": config["DATA_FILE"],
-        "BUILD_FILE_NAME": "",
-        "BUILD_FILE_PATH": "",
-    }
-
-    if req_vals["remote"]:
-        docker_image = f"{target}-remote"
-        file_path = os.path.join(work_path, filename)
-        r = requests.get(req_vals["build_url"], allow_redirects=True, stream=True)
-        if not r.ok:
-            raise RuntimeError(f"Failed to download build file: {r.status_code}")
-
-        # Fetch the file in chunks and compute sha256 while we do so
-        h = hashlib.sha256()
-        with open(file_path, "wb") as fp:
-            for chunk in r.iter_content(chunk_size=4096):
-                h.update(chunk)
-                fp.write(chunk)
-
-        digest = h.digest().hex()
-        app.logger.info("Downloaded %s with sha256 %s", req_vals["build_url"], digest)
-
-        if req_vals["build_hash"] != digest:
-            raise RuntimeError("Failed to validate build file checksum")
-
-        docker_env["BUILD_FILE_PATH"] = work_path
-        docker_env["BUILD_FILE_NAME"] = filename
-    else:
-        docker_image = f"{target}-local"
-        docker_env["BUILD_FILE_PATH"] = req_vals["build_url"][7:]
-
-    return (docker_image, docker_env)
-
-def enqueue_job(req_vals: dict[str, any]):
+def enqueue_job(job_func, req_vals: dict[str, any]):
     """
     Enqueue the given request vals via redis rq for processing.
     """
@@ -169,7 +135,8 @@ def enqueue_job(req_vals: dict[str, any]):
             default_timeout=queue_default_timeout,
         )
 
-        return q.enqueue(zeek_benchmarker.tasks.zeek_job, req_vals)
+        return q.enqueue(job_func, req_vals)
+
 
 def create_app(*, config=None):
     """
@@ -185,7 +152,7 @@ def create_app(*, config=None):
 
         # At this point we've validated the request and just
         # enqueue it for the worker to pick up.
-        job = enqueue_job(req_vals)
+        job = enqueue_job(zeek_benchmarker.tasks.zeek_job, req_vals)
         return jsonify(
             {
                 "job": {
@@ -197,107 +164,17 @@ def create_app(*, config=None):
 
     @app.route("/broker", methods=["POST"])
     def broker():
+        # At this point we've validated the request and just
+        # enqueue it for the worker to pick up.
         req_vals = parse_request(request)
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        work_path = os.path.join(base_path, req_vals["normalized_branch"])
-        filename = req_vals["build_url"].rsplit("/", 1)[1]
-
-        result = None
-        try:
-            os.mkdir(work_path, mode=0o700)
-
-            (docker_image, docker_env) = build_docker_env(
-                "broker", config, req_vals, work_path, filename
-            )
-
-            # Run benchmark
-            proc = subprocess.Popen(
-                [
-                    "/usr/bin/docker-compose",
-                    "up",
-                    "--no-log-prefix",
-                    "--force-recreate",
-                    docker_image,
-                ],
-                env=docker_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            if not proc:
-                raise RuntimeError("Runner failed to execute")
-            if not proc.stdout:
-                raise RuntimeError("stdout was missing")
-
-            log_output = ""
-            log_data = {}
-            p = re.compile(r"zeek-recording-(.*?) \((.*?)\): (.*)s")
-            for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
-                if line.startswith("system"):
-                    log_output += line
-                    parts = line.split(":")
-                    log_data["system"] = float(parts[1].strip()[:-1])
-                elif line.startswith("zeek"):
-                    log_output += line
-                    m = p.match(line)
-                    if m:
-                        log_data[f"{m.group(1):s}_{m.group(2):s}"] = float(m.group(3))
-
-            if req_vals["remote"]:
-                db_conn = sqlite3.connect(config["DATABASE_FILE"])
-                c = db_conn.cursor()
-                c.execute(
-                    """CREATE TABLE IF NOT EXISTS "broker" (
-                           "stamp" datetime primary key default (datetime('now', 'localtime')),
-                           "logger_sending" float not null,
-                           "logger_receiving" float not null,
-                           "manager_sending" float not null,
-                           "manager_receiving" float not null,
-                           "proxy_sending" float not null,
-                           "proxy_receiving" float not null,
-                           "worker_sending" float not null,
-                           "worker_receiving" float not null,
-                           "system" float not null, "sha" text, "branch" text);"""
-                )
-
-                c.execute(
-                    """insert into broker (logger_sending, logger_receiving,
-                           manager_sending, manager_receiving,
-                           proxy_sending, proxy_receiving,
-                           worker_sending, worker_receiving,
-                           system, sha, branch) values (?,?,?,?,?,?,?,?,?,?,?)""",
-                    [
-                        log_data["logger_sending"],
-                        log_data["logger_receiving"],
-                        log_data["manager_sending"],
-                        log_data["manager_receiving"],
-                        log_data["proxy_sending"],
-                        log_data["proxy_receiving"],
-                        log_data["worker_sending"],
-                        log_data["worker_receiving"],
-                        log_data["system"],
-                        req_vals.get("commit", ""),
-                        req_vals.get("original_branch", ""),
-                    ],
-                )
-
-                db_conn.commit()
-                db_conn.close()
-
-        except RuntimeError as rt_err:
-            app.logger.error(traceback.format_exc())
-            result = (str(rt_err), 500)
-        except Exception:
-            # log any other exceptions, but eat the string from them
-            app.logger.error(traceback.format_exc())
-            result = ("Failure occurred", 500)
-        else:
-            result = (log_output, 200)
-
-        subprocess.call(["docker", "container", "rm", "broker"])
-
-        if os.path.exists(work_path):
-            shutil.rmtree(work_path)
-
-        return result
+        job = enqueue_job(zeek_benchmarker.tasks.broker_job, req_vals)
+        return jsonify(
+            {
+                "job": {
+                    "id": job.id,
+                    "enqueued_at": job.enqueued_at,
+                }
+            }
+        )
 
     return app
