@@ -57,7 +57,6 @@ class ContainerRunner:
         return env
 
     def run(self, target: str, env: Env, timeout: float = None):
-        logger.debug("Running %s with %s", target, env)
         return subprocess.run(
             [
                 "docker-compose",

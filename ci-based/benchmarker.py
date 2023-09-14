@@ -178,10 +178,15 @@ def zeek():
     # enqueue it for the worker to pick up.
     redis_host = os.getenv("REDIS_HOST", "localhost")
     queue_name = os.getenv("RQ_QUEUE_NAME", "default")
+    queue_default_timeout = int(os.getenv("RQ_DEFAULT_TIMEOUT", "1800"))
 
     # New connection per request, that's alright for now.
     with redis.Redis(host=redis_host) as redis_conn:
-        q = rq.Queue(name=queue_name, connection=redis_conn)
+        q = rq.Queue(
+            name=queue_name,
+            connection=redis_conn,
+            default_timeout=queue_default_timeout,
+        )
         job = q.enqueue(zeek_benchmarker.tasks.zeek_job, req_vals)
 
         return jsonify(
