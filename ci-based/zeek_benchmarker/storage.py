@@ -27,7 +27,7 @@ class Storage:
             c.execute(
                 """CREATE TABLE IF NOT EXISTS "zeek_tests" (
                        "id" integer primary key autoincrement not null,
-                       "ts" datetime default (UNIXEPOCH()),
+                       "ts" datetime default (STRFTIME('%s')),
                        "stamp" datetime default (datetime('now', 'localtime')),
                        "job_id" text not null,
                        "test_id" text not null,
