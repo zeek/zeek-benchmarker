@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import typing
 
+import docker
+import docker.types
 import requests
 
 from . import config, storage
@@ -44,6 +46,18 @@ class ContainerRunner:
     the same service with different environment variables.
     """
 
+    _instance: "ContainerRunner" = None
+
+    @staticmethod
+    def get() -> "ContainerRunner":
+        if ContainerRunner._instance is None:
+            ContainerRunner._instance = ContainerRunner()
+
+        return ContainerRunner._instance
+
+    def __init__(self, client: docker.client.DockerClient = None):
+        self._client = client or docker.from_env()
+
     def build_env(self, job: "Job", **kwargs) -> Env:
         env = {
             "BUILD_FILE_PATH": job.job_dir,
@@ -69,18 +83,9 @@ class ContainerRunner:
             timeout=timeout,
         )
 
-    _instance: "ContainerRunner" = None
-
-    @staticmethod
-    def get() -> "ContainerRunner":
-        if ContainerRunner._instance is None:
-            ContainerRunner._instance = ContainerRunner()
-
-        return ContainerRunner._instance
-
     def unpack_build(
         self,
-        p: pathlib.Path,
+        build_path: pathlib.Path,
         *,
         volume: str,
         strip_components=2,
@@ -89,12 +94,12 @@ class ContainerRunner:
     ):
         """
         Starts a container and extracts the tar archive provided by
-        ``p`` into ``volume`` using ``image``.
+        ``build_path`` into ``volume`` using ``image``.
 
         The contents of ``volume`` are deleted before extraction.
         """
-        if not p.exists():
-            raise FileNotFoundError(str(p))
+        if not build_path.exists():
+            raise FileNotFoundError(str(build_path))
 
         if not volume:
             raise ValueError("no volume")
@@ -103,9 +108,10 @@ class ContainerRunner:
         target_dir = "/target"
         # Where to mount the directory where build.tgz is located into.
         source_dir = "/source"
-        build_file_path = str(p.parent)
-        build_filename = str(p.parts[-1])
-        tar_command = " ".join(
+        build_file_path = str(build_path.parent)
+        build_filename = str(build_path.parts[-1])
+
+        command = " ".join(
             [
                 f"rm -rf {shlex.quote(target_dir)}/{{*,.*}};",
                 f"timeout --signal=SIGKILL {int(timeout)}",
@@ -115,30 +121,29 @@ class ContainerRunner:
             ]
         )
 
-        args = [
-            "/usr/bin/docker",
-            "run",
-            "--rm",
-            "--security-opt",
-            "no-new-privileges",
-            "--network",
-            "none",
-            "-t",
-            "--mount",
-            shlex.quote(f"type=volume,source={volume},destination={target_dir}"),
-            "--mount",
-            shlex.quote(f"type=bind,source={build_file_path},destination={source_dir}"),
-            "-w",
-            shlex.quote(source_dir),
-            image,
-            "bash",
-            "-x",
-            "-c",
-            tar_command,
+        mounts = [
+            docker.types.Mount(
+                read_only=True,
+                target=source_dir,
+                source=build_file_path,
+                type="bind",
+            ),
+            docker.types.Mount(
+                target=target_dir,
+                source=volume,
+            ),
         ]
 
-        logger.debug("Unpack: %s", " ".join(args))
-        subprocess.run(args, check=True, timeout=timeout + 5)
+        logger.debug("Unpacking %s in container: %s", build_path, command)
+        self._client.containers.run(
+            image=image,
+            mounts=mounts,
+            auto_remove=True,
+            network_disabled=True,
+            working_dir=source_dir,
+            security_opt=["no-new-privileges"],
+            command=["bash", "-x", "-c", command],
+        )
 
 
 @dataclasses.dataclass
