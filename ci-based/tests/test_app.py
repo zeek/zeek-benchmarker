@@ -63,7 +63,7 @@ class TestApi(unittest.TestCase):
         self.assertIn("job", r.json)
 
         self.assertEqual(
-            self._test_build_hash, enqueue_job_mock.call_args[0][0]["build_hash"]
+            self._test_build_hash, enqueue_job_mock.call_args[0][1]["build_hash"]
         )
 
     def test_zeek_bad_build_url(self, enqueue_job_mock):
