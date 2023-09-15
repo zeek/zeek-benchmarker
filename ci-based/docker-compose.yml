@@ -14,6 +14,8 @@ volumes:
     external: true
   broker_test_data:
     external: true
+  zeek_install_data:
+    external: true
 
 services:
   zeek-base:
@@ -28,10 +30,8 @@ services:
     environment:
       - TMPFS_PATH=/mnt/data/tmpfs
       - ZEEKCPUS=${ZEEKCPUS}
-      - ZEEKPATH=/benchmarker/zeek/install/share/zeek:/benchmarker/zeek/install/share/zeek/policy:/benchmarker/zeek/install/share/zeek/site:/benchmarker/zeek/install/share/zeek/builtin-plugins:/benchmarker/zeek/install/share/zeek/builtin-plugins/Zeek_AF_Packet
       - ZEEKSEED=/benchmarker/random.seed
-      - ZEEKBIN=/benchmarker/zeek/install/bin/zeek
-      - ZEEK_PLUGIN_PATH=/benchmarker/zeek/install/lib/zeek/plugins
+      - ZEEKBIN=/zeek/install/bin/zeek
       - DATA_FILE_NAME=${DATA_FILE_NAME:-}
       - BENCH_COMMAND=${BENCH_COMMAND:-}
       - BENCH_ARGS=${BENCH_ARGS:-}
@@ -58,6 +58,7 @@ services:
       - BUILD_FILE_NAME=${BUILD_FILE_NAME}
     volumes:
       - ${BUILD_FILE_PATH}:/benchmarker/binaries:ro
+      - zeek_install_data:/zeek/install
 
   zeek-local:
     extends: zeek-base

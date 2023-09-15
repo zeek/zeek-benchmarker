@@ -15,6 +15,10 @@ class Config:
         return self._d["WORK_DIR"]
 
     @property
+    def tar_timeout(self) -> str:
+        return self._d.get("TAR_TIMEOUT", 30)
+
+    @property
     def zeek_cpus(self) -> str:
         return ",".join(str(c) for c in self._d["CPU_SET"])
 

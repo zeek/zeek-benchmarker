@@ -4,6 +4,7 @@ import hashlib
 import logging
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import typing
@@ -77,6 +78,68 @@ class ContainerRunner:
 
         return ContainerRunner._instance
 
+    def unpack_build(
+        self,
+        p: pathlib.Path,
+        *,
+        volume: str,
+        strip_components=2,
+        image="ubuntu:22.04",
+        timeout=30,
+    ):
+        """
+        Starts a container and extracts the tar archive provided by
+        ``p`` into ``volume`` using ``image``.
+
+        The contents of ``volume`` are deleted before extraction.
+        """
+        if not p.exists():
+            raise FileNotFoundError(str(p))
+
+        if not volume:
+            raise ValueError("no volume")
+
+        # Where to extract into in the container.
+        target_dir = "/target"
+        # Where to mount the directory where build.tgz is located into.
+        source_dir = "/source"
+        build_file_path = str(p.parent)
+        build_filename = str(p.parts[-1])
+        tar_command = " ".join(
+            [
+                f"rm -rf {shlex.quote(target_dir)}/{{*,.*}};",
+                f"timeout --signal=SIGKILL {int(timeout)}",
+                f"tar -xzf {shlex.quote(build_filename)}",
+                f"--strip-components {int(strip_components)}",
+                f"-C {shlex.quote(target_dir)}",
+            ]
+        )
+
+        args = [
+            "/usr/bin/docker",
+            "run",
+            "--rm",
+            "--security-opt",
+            "no-new-privileges",
+            "--network",
+            "none",
+            "-t",
+            "--mount",
+            shlex.quote(f"type=volume,source={volume},destination={target_dir}"),
+            "--mount",
+            shlex.quote(f"type=bind,source={build_file_path},destination={source_dir}"),
+            "-w",
+            shlex.quote(source_dir),
+            image,
+            "bash",
+            "-x",
+            "-c",
+            tar_command,
+        ]
+
+        logger.debug("Unpack: %s", " ".join(args))
+        subprocess.run(args, check=True, timeout=timeout + 5)
+
 
 @dataclasses.dataclass
 class Job:
@@ -99,6 +162,21 @@ class Job:
     build_path: str = None
     # Just the filename from build_path
     build_filename: str = None
+
+    @property
+    def install_volume(self) -> str:
+        """
+        Volume into which to extract build_path into the
+        testing container.
+        """
+        raise NotImplementedError()
+
+    @property
+    def unpack_strip_component(self) -> int:
+        """
+        How many components to strip when running tar on build.tgz
+        """
+        return 2
 
     def fetch_build_url(self, build_path: pathlib.Path):
         """
@@ -145,6 +223,15 @@ class Job:
         self.build_path = self.job_dir / self.build_filename
 
         self.fetch_build_url(self.build_path)
+
+        cr = ContainerRunner.get()
+
+        cr.unpack_build(
+            self.build_path,
+            volume=self.install_volume,
+            strip_components=self.unpack_strip_component,
+            timeout=config.get().tar_timeout,
+        )
 
         try:
             self._process()
@@ -216,6 +303,10 @@ class ZeekJob(Job):
     """
     Zeek benchmarker job.
     """
+
+    @property
+    def install_volume(self) -> str:
+        return "zeek_install_data"
 
     def run_zeek_test(self, t):
         if t.skip:
@@ -296,6 +387,13 @@ class BrokerJob(Job):
     """
     Broker benchmarker job.
     """
+
+    @property
+    def install_volume(self) -> str:
+        """
+        XXX: This needs testing.
+        """
+        return "broker_install_data"
 
     def _process(self):
         import io
