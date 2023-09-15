@@ -60,6 +60,10 @@ ZEEK_TESTS:
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/table-ops/complex-key-value.zeek
 
+  - id: micro-table-ops-complex-key-value-2
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/complex-key-value-2.zeek
+
   - id: micro-table-ops-copy
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/table-ops/copy.zeek
@@ -79,6 +83,14 @@ ZEEK_TESTS:
   - id: micro-logging-json-two-streams
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/logging/two-streams.zeek LogAscii::use_json=T
+
+  - id: micro-logging-writer-none-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek Log::default_writer=Log::WRITER_NONE
+
+  - id: micro-logging-writer-none-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek Log::default_writer=Log::WRITER_NONE
 
   - id: micro-function-calls-bifs
     bench_command: /benchmarker/scripts/tiny-benchmark.sh

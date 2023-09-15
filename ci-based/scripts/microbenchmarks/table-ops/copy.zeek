@@ -1,5 +1,5 @@
 global tbl: table[count] of count;
-global n = 2000000;
+global n = 4000000;
 global offset = 100000;
 
 event zeek_init()

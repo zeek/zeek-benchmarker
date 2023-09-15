@@ -1,4 +1,4 @@
-global n = 10000000;
+global n = 20000000;
 
 
 global pat = /some(thing|one)/;

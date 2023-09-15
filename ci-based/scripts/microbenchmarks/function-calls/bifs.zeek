@@ -15,7 +15,6 @@ event zeek_init()
 		sum += double_to_count(2.0);
 		sum += int_to_count(+32);
 		sum += port_to_count(to_port("80/tcp"));
-		sum += double_to_count(pow(2, 2));
 
 		--i;
 		}
