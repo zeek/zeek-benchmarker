@@ -25,7 +25,9 @@ class Client:
         self._session = requests.Session()
         self._hmac_key = hmac_key
 
-    def _submit_build(self, *, path, branch, build_url, build_hash, commit=None, hmac_ts=None):
+    def _submit_build(
+        self, *, path, branch, build_url, build_hash, commit=None, hmac_ts=None
+    ):
         """ """
         hmac_ts = int(time.time()) if hmac_ts is None else hmac_ts
         url = "/".join([self.url, path.lstrip("/")])
@@ -61,10 +63,12 @@ class Client:
             build_url=build_url,
             build_hash=build_hash,
             commit=commit,
-            hmac_ts=hmac_ts
+            hmac_ts=hmac_ts,
         )
 
-    def submit_broker(self, *, branch, build_url, build_hash, commit=None, hmac_ts=None):
+    def submit_broker(
+        self, *, branch, build_url, build_hash, commit=None, hmac_ts=None
+    ):
         """
         Submit a benchmark request to /broker
         """
@@ -74,7 +78,7 @@ class Client:
             build_url=build_url,
             build_hash=build_hash,
             commit=commit,
-            hmac_ts=hmac_ts
+            hmac_ts=hmac_ts,
         )
 
 
