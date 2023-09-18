@@ -1,6 +1,5 @@
 import hmac
 import os
-import subprocess
 import time
 from datetime import datetime, timedelta
 
@@ -66,14 +65,42 @@ def check_hmac_request(req):
         raise Forbidden("HMAC validation failed")
 
 
+def is_valid_branch_name(branch: str):
+    """
+    Check if this is a valid branch name. Typing out the rules in the manpage.
+    We normalize it anyhow, so not sure this is needed.
+    """
+    if not branch:
+        return False
+
+    # Arbitrary
+    if len(branch) > 256:
+        return False
+
+    disallowed = [";", "/.", "..", "~", "^", ":", "*", "?", "[", "//", "@{", "\\"]
+    for d in disallowed:
+        if d in branch:
+            return False
+
+    if branch.startswith("/") or branch.endswith(".") or branch == "@":
+        return False
+
+    parts = branch.split("/")
+    if any(p.endswith(".lock") for p in parts):
+        return False
+
+    return True
+
+
 def parse_request(req):
     """
     Generic request parsing.
     """
     req_vals = {}
+
     branch = request.args.get("branch", "")
-    if not branch:
-        raise BadRequest("Branch argument required")
+    if not is_valid_branch_name(branch):
+        raise BadRequest("Missing or invalid branch")
 
     build_url = request.args.get("build", None)
     if not build_url:
@@ -89,17 +116,6 @@ def parse_request(req):
         remote_build = False
     else:
         raise BadRequest("Invalid build URL")
-
-    # Validate the branch name. Disallow semi-colon and then use git's
-    # method for testing for valid names.
-    if ";" in branch:
-        raise BadRequest("Invalid branch name")
-
-    ret = subprocess.call(
-        ["git", "check-ref-format", "--branch", branch], stdout=subprocess.DEVNULL
-    )
-    if ret:
-        raise BadRequest("Invalid branch name")
 
     # Normalize the branch name to remove any non-alphanumeric characters so it's
     # safe to use as part of a path name. This is way overkill, but it's safer.

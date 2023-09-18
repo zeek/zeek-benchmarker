@@ -4,7 +4,7 @@ import time
 import unittest
 from unittest import mock
 
-import zeek_benchmarker.app
+from zeek_benchmarker.app import create_app, is_valid_branch_name
 
 
 @mock.patch("zeek_benchmarker.app.enqueue_job")
@@ -12,7 +12,7 @@ class TestApi(unittest.TestCase):
     def setUp(self):
         self._test_hmac_key = b"test-key"
 
-        self.app = zeek_benchmarker.app.create_app(
+        self.app = create_app(
             config={
                 "TESTING": True,
                 "TEST": True,
@@ -105,3 +105,47 @@ class TestApi(unittest.TestCase):
         self.assertIn("HMAC validation failed", r.text)
 
         enqueue_job_mock.assert_not_called()
+
+    def test_zeek_bad_branch(self, enqueue_job_mock):
+        enqueue_job_mock.return_value = self.enqueue_job_result_mock
+
+        r = self._test_client.post(
+            "/zeek",
+            query_string={
+                "branch": "/test-branch//bad",
+                "build": "http://localhost:8080/build.tgz",
+                "build_hash": self._test_build_hash,
+            },
+            headers={
+                "Zeek-HMAC": self._test_zeek_digest,
+                "Zeek-HMAC-Timestamp": self._test_ts,
+            },
+        )
+        self.assertEqual(400, r.status_code)
+        self.assertIn("issing or invalid branch", r.text)
+
+
+class TestBranchNmae(unittest.TestCase):
+    def test_good(self):
+        good_names = [
+            "topic/jon/some-improvement",
+            "topic/jon/1234-some-improvement",
+            "topic/vern/ZAM-September-2023.09",
+        ]
+        for name in good_names:
+            with self.subTest(name=name):
+                self.assertTrue(is_valid_branch_name(name))
+
+    def test_bad(self):
+        bad_names = [
+            "/topic/x",
+            "@",
+            "topic/.nope",
+            "topic//nope/what",
+            "topic/nope/what.lock",
+            "topic/nope.lock/feature",
+        ]
+
+        for name in bad_names:
+            with self.subTest(name, name=name):
+                self.assertFalse(is_valid_branch_name(name))
