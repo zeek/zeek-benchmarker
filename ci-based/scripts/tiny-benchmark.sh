@@ -4,8 +4,6 @@
 # prefixed with nice and taskset under timeout and that's it.
 #
 set -eux
-echo ${ZEEKBIN}
-echo ${ZEEKCPUS}
 NICE_ADJUSTMENT=${NICE_ADJUSTMENT:--19}
 KILL_TIMEOUT=${KILL_TIMEOUT:-300}
 

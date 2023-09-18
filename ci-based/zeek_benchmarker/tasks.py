@@ -1,6 +1,7 @@
 import dataclasses
 import errno
 import hashlib
+import json
 import logging
 import os
 import os.path
@@ -8,7 +9,6 @@ import pathlib
 import re
 import shlex
 import shutil
-import subprocess
 import typing
 
 import docker
@@ -60,30 +60,82 @@ class ContainerRunner:
     def __init__(self, client: docker.client.DockerClient = None):
         self._client = client or docker.from_env()
 
-    def build_env(self, job: "Job", **kwargs) -> Env:
-        env = {
-            "BUILD_FILE_PATH": job.job_dir,
-            "BUILD_FILE_NAME": job.build_filename,
-            **kwargs,
+    def runc(
+        self,
+        *,
+        image: str,
+        command: str,
+        env: Env,
+        seccomp_profile: dict[str, any],  # contents of the seccomp profile
+        install_volume: str,
+        install_target: str,
+        timeout: float = None,
+        cap_add: typing.Optional[list[str]] = None,
+        tmpfs: typing.Optional[list[str]] = None,
+        network_disabled: bool = True,
+    ):
+        """
+        Run the given image for benchmarking, mounting
+        install_volume at install_target.
+        """
+        # Don't modify the caller's env.
+        env = env.copy()
+
+        # Ensure the image exists locally.
+        self._client.images.get(image)
+
+        class Result(typing.NamedTuple):
+            returncode: int
+            stdout: bytes
+            stderr: bytes
+
+        cap_add = cap_add or ["SYS_NICE"]
+        default_tmpfs_path = "/mnt/data/tmpfs"
+        tmpfs = tmpfs or {
+            default_tmpfs_path: "",
         }
 
-        return env
+        if not tmpfs:
+            env["TMPFS_PATH"] = default_tmpfs_path
 
-    def run(self, target: str, env: Env, timeout: float = None):
-        return subprocess.run(
-            [
-                "docker-compose",
-                "up",
-                "--no-log-prefix",
-                "--force-recreate",
-                target,
-            ],
-            env=env,
-            # capture_output=True,
-            stdout=subprocess.PIPE,
-            check=False,
-            timeout=timeout,
+        mounts = [
+            docker.types.Mount(
+                type="volume",
+                source=install_volume,
+                target=install_target,
+            )
+        ]
+
+        security_opt = [
+            f"seccomp={json.dumps(seccomp_profile)}",
+        ]
+
+        container = self._client.containers.run(
+            image=image,
+            command=command,
+            detach=True,
+            cap_add=cap_add,
+            environment=env,
+            tmpfs=tmpfs,
+            mounts=mounts,
+            security_opt=security_opt,
+            network_disabled=network_disabled,
         )
+
+        try:
+            wait = container.wait()
+            stdout_bytes = container.logs(stdout=True, stderr=False)
+            stderr_bytes = container.logs(stdout=False, stderr=True)
+            result = Result(wait.get("StatusCode", 99), stdout_bytes, stderr_bytes)
+            logger.debug(
+                "runc: returndcode=%s stdout=%s stderr=%s",
+                result.returncode,
+                result.stdout,
+                result.stderr,
+            )
+            return result
+        finally:
+            container.remove(force=True)
 
     def unpack_build(
         self,
@@ -138,7 +190,7 @@ class ContainerRunner:
         # If the spool directory is backed by a volume (when this code
         # is running within docker-compose), need to use a volume mount
         # because the paths within the container are meaningless to the
-        # docker daemon for bind-mounts.
+        # docker daemon running on the host for bind-mounts.
         spool_volume = os.getenv("SPOOL_VOLUME")
         if spool_volume:
             source_mount = docker.types.Mount(
@@ -342,26 +394,38 @@ class ZeekJob(Job):
         cr = ContainerRunner.get()
         cfg = config.get()
 
-        extra_env = {
+        env = {
             "BENCH_TEST_ID": t.test_id,
             "ZEEKCPUS": cfg.zeek_cpus,
+            "ZEEKBIN": "/zeek/install/bin/zeek",
+            "ZEEKSEED": "/benchmarker/random.seed",
         }
 
         if t.bench_command and t.bench_args:
-            extra_env["BENCH_COMMAND"] = t.bench_command
-            extra_env["BENCH_ARGS"] = t.bench_args
+            env["BENCH_COMMAND"] = t.bench_command
+            env["BENCH_ARGS"] = t.bench_args
 
         if t.pcap:
-            extra_env["DATA_FILE_NAME"] = t.pcap
+            env["DATA_FILE_NAME"] = t.pcap
 
-        env = ContainerRunner.get().build_env(self, **extra_env)
+        # TODO: Make configurable.
+        with open("./zeek-seccomp.json", "rb") as fp:
+            seccomp_profile = json.load(fp)
 
         store = storage.get()
         for i in range(1, t.runs + 1):
             logger.debug("Running %s:%s (%d)", self.job_id, t.test_id, i)
 
             try:
-                proc = cr.run("zeek-remote", env)
+                proc = cr.runc(
+                    image="zeek-benchmarker-zeek-runner",
+                    command="/benchmarker/scripts/run-zeek.sh",
+                    env=env,
+                    seccomp_profile=seccomp_profile,
+                    install_volume=self.install_volume,
+                    install_target="/zeek/install",
+                )
+
                 result = ZeekTestResult.parse_from(i, proc.stdout)
                 logger.info(
                     "Completed %s:%s (%d) result=%s", self.job_id, t.test_id, i, result
@@ -378,7 +442,6 @@ class ZeekJob(Job):
                     proc.stdout,
                     proc.stderr,
                 )
-                return
 
     def _process(self):
         cfg = config.get()
@@ -424,6 +487,8 @@ class BrokerJob(Job):
     def _process(self):
         import io
         import sqlite3
+
+        raise NotImplementedError("XXX this needs a re-work")
 
         cr = ContainerRunner.get()
         env = cr.build_env(self)
