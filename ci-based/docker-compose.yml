@@ -38,6 +38,8 @@ services:
       - "/app/.venv/bin/gunicorn"
       - "--bind"
       - "0.0.0.0:8080"
+      - "--access-logfile"
+      - "-"
       - "benchmarker:app"
     environment:
       - REDIS_HOST=redis
