@@ -33,7 +33,11 @@ class TestContainerRunner(unittest.TestCase):
     def test_unpack_build(self):
         self.test_path.parent.mkdir()
         self.test_path.touch()
-        self._cr.unpack_build(self.test_path, volume="test-volume")
+        self._cr.unpack_build(
+            build_path=self.test_path,
+            image="test-image",
+            volume="test-volume",
+        )
         self._client_mock.containers.run.assert_called_once()
         run_kwargs = self._client_mock.containers.run.call_args[1]
         # bash -x -c 'cmd'
@@ -43,7 +47,11 @@ class TestContainerRunner(unittest.TestCase):
         self.test_path = self.test_spool / "fake job id/space in build.tgz"
         self.test_path.parent.mkdir()
         self.test_path.touch()
-        self._cr.unpack_build(self.test_path, volume="test-volume")
+        self._cr.unpack_build(
+            build_path=self.test_path,
+            image="test-image",
+            volume="test-volume",
+        )
         self._client_mock.containers.run.assert_called_once()
         run_kwargs = self._client_mock.containers.run.call_args[1]
         # bash -x -c 'cmd'
@@ -52,10 +60,14 @@ class TestContainerRunner(unittest.TestCase):
     def test_unpack_no_spool_volume(self):
         self.test_path.parent.mkdir()
         self.test_path.touch()
-        self._cr.unpack_build(self.test_path, volume="test-volume")
+        self._cr.unpack_build(
+            build_path=self.test_path,
+            image="test-image",
+            volume="test-volume",
+        )
+
         self._client_mock.containers.run.assert_called_once()
         run_kwargs = self._client_mock.containers.run.call_args[1]
-        # __import__('IPython').embed(banner1="")
         run_kwargs["mounts"]
         source_volume = run_kwargs["mounts"][1]
         self.assertEqual("bind", source_volume["Type"])
@@ -67,7 +79,12 @@ class TestContainerRunner(unittest.TestCase):
     def test_unpack_spool_volume(self):
         self.test_path.parent.mkdir()
         self.test_path.touch()
-        self._cr.unpack_build(self.test_path, volume="test-volume")
+        self._cr.unpack_build(
+            build_path=self.test_path,
+            image="test-image",
+            volume="test-volume",
+        )
+
         self._client_mock.containers.run.assert_called_once()
         run_kwargs = self._client_mock.containers.run.call_args[1]
         source_volume = run_kwargs["mounts"][1]

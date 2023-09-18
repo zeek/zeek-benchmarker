@@ -20,7 +20,7 @@ BROKER_CONFIG_FILE_NAME: unset
 
 # Path to an sqlite database file that stores the metrics once they're completed for
 # viewing on grafana, etc.
-DATABASE_FILE: unset
+DATABASE_FILE: ./persistent/unset
 
 # Can be absolute or relative.
 WORK_DIR: ./spool
@@ -42,19 +42,15 @@ TAR_TIMEOUT: 20
 ZEEK_TESTS:
   - id: pcap-ixia-ent-data-center-2-30sec-500mbps
     pcap_file: ixia_RamEntDataCenter2_30sec_500Mbps.pcap
-    skip: true
 
   - id: pcap-zeek-testing-ipv6
-    pcap_file: ipv6.trace
-    skip: true
+    pcap_file: zeek-testing-ipv6.trace
 
   - id: pcap-zeek-testing-2009-m57-day11-18
     pcap_file: 2009-M57-day11-18.trace
-    skip: true
 
   - id: pcap-50k-tcp-conns
     pcap_file: 50k-tcp-conns.pcap
-    skip: true
 
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh

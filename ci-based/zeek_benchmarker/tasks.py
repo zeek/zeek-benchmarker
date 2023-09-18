@@ -69,6 +69,8 @@ class ContainerRunner:
         seccomp_profile: dict[str, any],  # contents of the seccomp profile
         install_volume: str,
         install_target: str,
+        test_data_volume: str,
+        test_data_target: str = "/test_data",
         timeout: float = None,
         cap_add: list[str] | None = None,
         tmpfs: list[str] | None = None,
@@ -103,7 +105,12 @@ class ContainerRunner:
                 type="volume",
                 source=install_volume,
                 target=install_target,
-            )
+            ),
+            docker.types.Mount(
+                type="volume",
+                source=test_data_volume,
+                target=test_data_target,
+            ),
         ]
 
         security_opt = [
@@ -139,11 +146,11 @@ class ContainerRunner:
 
     def unpack_build(
         self,
-        build_path: pathlib.Path,
         *,
+        build_path: pathlib.Path,
+        image: str,
         volume: str,
         strip_components=2,
-        image="ubuntu:22.04",
         timeout=30,
     ):
         """
@@ -253,6 +260,13 @@ class Job:
         raise NotImplementedError()
 
     @property
+    def testing_image(self) -> str:
+        """
+        Image used for unpacking and running benchmarking tests.
+        """
+        raise NotImplementedError()
+
+    @property
     def unpack_strip_component(self) -> int:
         """
         How many components to strip when running tar on build.tgz
@@ -305,7 +319,8 @@ class Job:
         cr = ContainerRunner.get()
 
         cr.unpack_build(
-            self.build_path,
+            build_path=self.build_path,
+            image=self.testing_image,
             volume=self.install_volume,
             strip_components=self.unpack_strip_component,
             timeout=config.get().tar_timeout,
@@ -386,6 +401,10 @@ class ZeekJob(Job):
     def install_volume(self) -> str:
         return "zeek_install_data"
 
+    @property
+    def testing_image(self) -> str:
+        return "zeek-benchmarker-zeek-runner"
+
     def run_zeek_test(self, t):
         if t.skip:
             logger.warning("Skipping %s", t)
@@ -418,12 +437,13 @@ class ZeekJob(Job):
 
             try:
                 proc = cr.runc(
-                    image="zeek-benchmarker-zeek-runner",
+                    image=self.testing_image,
                     command="/benchmarker/scripts/run-zeek.sh",
                     env=env,
                     seccomp_profile=seccomp_profile,
                     install_volume=self.install_volume,
                     install_target="/zeek/install",
+                    test_data_volume="test_data",
                 )
 
                 result = ZeekTestResult.parse_from(i, proc.stdout)
@@ -483,6 +503,10 @@ class BrokerJob(Job):
         XXX: This needs testing.
         """
         return "broker_install_data"
+
+    @property
+    def testing_image(self) -> str:
+        return "zeek-benchmarker-broker-runner"
 
     def _process(self):
         import io
