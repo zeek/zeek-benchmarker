@@ -39,7 +39,7 @@ class InvalidChecksum(Error):
     pass
 
 
-Env = typing.Dict[str, str]
+Env = dict[str, str]
 
 
 class ContainerRunner:
@@ -70,8 +70,8 @@ class ContainerRunner:
         install_volume: str,
         install_target: str,
         timeout: float = None,
-        cap_add: typing.Optional[list[str]] = None,
-        tmpfs: typing.Optional[list[str]] = None,
+        cap_add: list[str] | None = None,
+        tmpfs: list[str] | None = None,
         network_disabled: bool = True,
     ):
         """
@@ -229,7 +229,7 @@ class Job:
 
     original_branch: str
     normalized_branch: str
-    commit: typing.Optional[str]
+    commit: str | None
 
     # rq specific job_id
     job_id: str
@@ -366,7 +366,7 @@ class ZeekTest(typing.NamedTuple):
     skip: bool = None
 
     @staticmethod
-    def from_dict(d: typing.Dict[str, any]):
+    def from_dict(d: dict[str, any]):
         return ZeekTest(
             test_id=d["id"],
             runs=d.get("runs", 3),

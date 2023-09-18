@@ -7,7 +7,7 @@ import yaml
 class Config:
     _config: "Config" = None
 
-    def __init__(self, d: typing.Dict[str, typing.Any]):
+    def __init__(self, d: dict[str, typing.Any]):
         self._d = d
 
     @property
