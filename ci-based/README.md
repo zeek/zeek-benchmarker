@@ -11,21 +11,23 @@ It uses Docker for privilege separation when running the benchmark scripts.
 
 ## Setup
 
-1. Create three docker volumes as described at the top of the docker-compose file:
-   - grafana_data: A path to store data for grafana
-   - test_data: A path containing pcaps for zeek benchmarks
-   - broker_test_data: A path containing a cluster configuration data file for broker benchmarks
-2. Create the four necessary docker images by running the following. Ignore warnings about unset environment variables.
+0. Copy `config.yml.template` to `config.yml`
 
-   sudo docker-compose build zeek-local
-   sudo docker-compose build zeek-remote
-   sudo docker-compose build broker-local
-   sudo docker-compose build broker-remote
+1. Create external docker volumes as described at the top of the docker-compose file:
+   - test_data (bind): A path containing pcaps for zeek benchmarks
+   - broker_test_data (bind): A path containing a cluster configuration data file for broker benchmarks
+   - zeek_install_data (volume): A volume holding the Zeek installation
+   - app_spool_data (volume): Volume holding data while working on jobs.
+
+2. Create the necessary container images by running the following.
+
+   sudo docker-compose build
+   sudo docker build -f Dockerfile . -t zeek-benchmarker-zeek-runner
 
 3. Edit the config.yml and set the values as described in that file.
-4. Create a python virtualenv in the same directory as the script, and use `pip` to install the required python modules listed in `requirements.txt`
-5. If systemd support is desired, edit the zeek-benchmarker.service file, update the `<path>` values to the location of the script, and copy it into the proper directory for systemd (usually `/etc/systemd/system`).
-6. By default the benchmarker runs on a system with a large amount of CPUs, and we limit the CPUs used to a specific set. This is set in the `app.config['CPU_SET']` variable. If used on a system with fewer CPUs, this needs to be updated.
+4. Run `docker-compose up`. You may want to configure systemd such
+   that the `docker-compose up` runs at boot time.
+
 
 ## Supported Endpoints
 
