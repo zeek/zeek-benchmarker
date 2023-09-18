@@ -16,7 +16,7 @@ class Config:
 
     @property
     def tar_timeout(self) -> str:
-        return self._d.get("TAR_TIMEOUT", 30)
+        return self._d.get("TAR_TIMEOUT", 20)
 
     @property
     def zeek_cpus(self) -> str:

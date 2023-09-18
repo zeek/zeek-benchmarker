@@ -16,8 +16,91 @@ volumes:
     external: true
   zeek_install_data:
     external: true
+  app_spool_data:
+    external: true
 
 services:
+  api:
+    build:
+      context: .
+      dockerfile: containers/api.Dockerfile
+    volumes:
+      # The few things the API needs could
+      # also come from the environment.
+      - ./config.yml:/app/config.yml
+    working_dir: /app
+    entrypoint:
+      - "/app/.venv/bin/gunicorn"
+      - "--bind"
+      - "0.0.0.0:8080"
+      - "benchmarker:app"
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - redis
+
+  rq:
+    # This is the RQ worker
+    build:
+      context: .
+      dockerfile: containers/rq.Dockerfile
+    volumes:
+      - ./config.yml:/app/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - app_spool_data:/app/spool
+
+      # The metrics database.
+      - ./metrics2.db:/app/metrics2.db
+
+      # These files are needed to build and run the Zeek
+      # containers for benchmark testing. We could make
+      # some pieces either part of the configuration, or
+      # put them in a separate directory at least?
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./zeek-seccomp.json:/app/zeek-seccomp.json:ro
+      - ./Dockerfile:/app/Dockerfile:ro
+      - ./scripts:/app/scripts:ro
+      - ./random.seed:/app/random.seed:ro
+    working_dir: /app
+    entrypoint:
+      - "/app/.venv/bin/rq"
+      - "worker"
+      - "-c"
+      - "settings"
+      - "-u"
+      - "redis://redis"
+    environment:
+      # Let the RQ worker know the name of volume
+      # backing its spool directory
+      - SPOOL_VOLUME=app_spool_data
+    restart: always
+    depends_on:
+      - redis
+
+  redis:
+    # Redis is accessed by api and rq.
+    build:
+      context: .
+      dockerfile: containers/redis.Dockerfile
+
+  test-http:
+    # HTTP service for faster fetching local builds.
+    image: python:3.11@sha256:cc7372fe4746ca323f18c6bd0d45dadf22d192756abc5f73e39f9c7f10cba5aa
+    volumes:
+      - ./testing/builds:/srv/builds
+    working_dir: /srv/
+    init: true
+    entrypoint:
+      - "python3"
+      - "-m"
+      - "http.server"
+    restart: always
+
+
+
   zeek-base:
     container_name: zeek
     build:
@@ -37,7 +120,7 @@ services:
       - BENCH_ARGS=${BENCH_ARGS:-}
     volumes:
       - test_data:/test_data:ro
-      - ./scripts:/benchmarker/scripts:ro
+      # - ./scripts:/benchmarker/scripts:ro
     tmpfs: /mnt/data/tmpfs
     networks:
       - zeek-internal

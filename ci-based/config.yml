@@ -8,6 +8,7 @@ ALLOWED_BUILD_URLS:
   - https://api.cirrus-ci.com/v1/artifact/task
   - http://127.0.0.1:8000/
   - http://localhost:8000/
+  - http://test-http:8000/
 
 # Filename of a pcap file used by the zeek endpoint. This should be stored in the path
 # referred to by the test_data docker volume.
@@ -35,6 +36,9 @@ CPU_SET:
 # for overall runtime for each request.
 RUN_COUNT: 3
 
+# Max time for unpacking the build archives.
+TAR_TIMEOUT: 20
+
 ZEEK_TESTS:
   - id: pcap-ixia-ent-data-center-2-30sec-500mbps
     pcap_file: ixia_RamEntDataCenter2_30sec_500Mbps.pcap
@@ -42,6 +46,10 @@ ZEEK_TESTS:
 
   - id: pcap-zeek-testing-ipv6
     pcap_file: ipv6.trace
+    skip: true
+
+  - id: pcap-zeek-testing-2009-m57-day11-18
+    pcap_file: 2009-M57-day11-18.trace
     skip: true
 
   - id: pcap-50k-tcp-conns

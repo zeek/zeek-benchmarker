@@ -2,6 +2,8 @@ import dataclasses
 import errno
 import hashlib
 import logging
+import os
+import os.path
 import pathlib
 import re
 import shlex
@@ -101,6 +103,10 @@ class ContainerRunner:
         if not build_path.exists():
             raise FileNotFoundError(str(build_path))
 
+        # Expected: /dir/<job-id>/build.tgz
+        if len(build_path.parts) < 3:
+            raise ValueError(str(build_path))
+
         if not volume:
             raise ValueError("no volume")
 
@@ -108,8 +114,9 @@ class ContainerRunner:
         target_dir = "/target"
         # Where to mount the directory where build.tgz is located into.
         source_dir = "/source"
-        build_file_path = str(build_path.parent)
-        build_filename = str(build_path.parts[-1])
+
+        # This will be job-id/build.tgz.
+        build_filename = os.path.sep.join(build_path.parts[-2:])
 
         command = " ".join(
             [
@@ -123,18 +130,35 @@ class ContainerRunner:
 
         mounts = [
             docker.types.Mount(
-                read_only=True,
-                target=source_dir,
-                source=build_file_path,
-                type="bind",
-            ),
-            docker.types.Mount(
                 target=target_dir,
                 source=volume,
             ),
         ]
 
-        logger.debug("Unpacking %s in container: %s", build_path, command)
+        # If the spool directory is backed by a volume (when this code
+        # is running within docker-compose), need to use a volume mount
+        # because the paths within the container are meaningless to the
+        # docker daemon for bind-mounts.
+        spool_volume = os.getenv("SPOOL_VOLUME")
+        if spool_volume:
+            source_mount = docker.types.Mount(
+                read_only=True,
+                target=source_dir,
+                source=spool_volume,
+                type="volume",
+            )
+        else:
+            spool_dir = str(build_path.parent.parent)
+            source_mount = docker.types.Mount(
+                read_only=True,
+                target=source_dir,
+                source=spool_dir,
+                type="bind",
+            )
+
+        mounts.append(source_mount)
+
+        logger.debug("Unpacking %s in container: %s (%s)", build_path, command, mounts)
         self._client.containers.run(
             image=image,
             mounts=mounts,
@@ -206,9 +230,6 @@ class Job:
             raise InvalidChecksum(
                 f"{self.build_url}: expected {self.sha256}, got {digest}"
             )
-
-        # Consider unpacking of archive once into job_dir: It is currently
-        # done over and over again for every test :-/
 
     def process(self):
         """

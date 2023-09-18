@@ -10,7 +10,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     tcpreplay \
     time
 
-RUN mkdir -p /benchmark
-COPY random.seed /benchmark
-
-WORKDIR /benchmark
+WORKDIR /benchmarker
+COPY ./scripts ./scripts
+COPY random.seed .
