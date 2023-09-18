@@ -17,6 +17,3 @@ COPY requirements.txt .
 RUN .venv/bin/pip install --break-system-packages -r requirements.txt
 
 COPY ./zeek_benchmarker ./zeek_benchmarker
-
-# RQ settings
-COPY settings.py ./settings.py

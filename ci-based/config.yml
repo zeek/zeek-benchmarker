@@ -111,3 +111,26 @@ ZEEK_TESTS:
   - id: micro-patterns-basic
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/patterns/basic.zeek
+
+rq:
+  logging:
+    dict_config:
+      version: 1
+      disable_existing_loggers: false
+      formatters:
+        standard:
+          format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+      handlers:
+        default:
+          formatter: "standard"
+          class: "logging.StreamHandler"
+          stream: "ext://sys.stderr"  # Default is stderr
+      loggers:
+        root:
+          handlers: ["default"]
+          level: "INFO"
+          propagate: false
+
+        zeek_benchmarker.tasks:
+          level: "DEBUG"
+          propagate: true

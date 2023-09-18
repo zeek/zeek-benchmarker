@@ -69,7 +69,7 @@ services:
       - "/app/.venv/bin/rq"
       - "worker"
       - "-c"
-      - "settings"
+      - "zeek_benchmarker.rq_worker_settings"
       - "-u"
       - "redis://redis"
     environment:
