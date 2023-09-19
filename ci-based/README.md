@@ -11,8 +11,6 @@ It uses Docker for privilege separation when running the benchmark scripts.
 
 ## Setup
 
-0. Copy `config.yml.template` to `config.yml`
-
 1. Create external docker volumes as described at the top of the docker-compose file:
    - test_data (bind): A path containing pcaps for zeek benchmarks
    - broker_test_data (bind): A path containing a cluster configuration data file for broker benchmarks
@@ -21,11 +19,16 @@ It uses Docker for privilege separation when running the benchmark scripts.
 
 2. Create the necessary container images by running the following.
 
-   sudo docker-compose build
-   sudo docker build -f Dockerfile . -t zeek-benchmarker-zeek-runner
+    sudo docker-compose build
+    sudo docker build -f Dockerfile . -t zeek-benchmarker-zeek-runner
 
 3. Edit the config.yml and set the values as described in that file.
-4. Run `docker-compose up`. You may want to configure systemd such
+
+4. Using `alembic`, initialize the database:
+
+    alembic upgrade head
+
+5. Run `docker-compose up`. You may want to configure systemd such
    that the `docker-compose up` runs at boot time.
 
 
