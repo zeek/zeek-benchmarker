@@ -125,7 +125,7 @@ class TestApi(unittest.TestCase):
         self.assertIn("issing or invalid branch", r.text)
 
 
-class TestBranchNmae(unittest.TestCase):
+class TestBranchName(unittest.TestCase):
     def test_good(self):
         good_names = [
             "topic/jon/some-improvement",
