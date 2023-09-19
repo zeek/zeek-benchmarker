@@ -12,6 +12,46 @@ class Storage:
     def __init__(self, filename):
         self._filename = filename
 
+    def store_job(self, *, job_id: str, kind: str, req_vals: dict[any, any]):
+        with sqlite3.connect(self._filename) as conn:
+            c = conn.cursor()
+            sql = """INSERT INTO jobs (
+                         id,
+                         kind,
+                         build_url,
+                         build_hash,
+                         sha,
+                         branch,
+                         original_branch,
+                         cirrus_repo_owner,
+                         cirrus_repo_name,
+                         cirrus_task_id,
+                         cirrus_build_id,
+                         cirrus_pr,
+                         github_check_suite_id,
+                         repo_version
+                    ) VALUES (
+                        :id,
+                        :kind,
+                        :build_url,
+                        :build_hash,
+                        :sha,
+                        :branch,
+                        :original_branch,
+                        :cirrus_repo_owner,
+                        :cirrus_repo_name,
+                        :cirrus_task_id,
+                        :cirrus_build_id,
+                        :cirrus_pr,
+                        :github_check_suite_id,
+                        :repo_version
+                    )"""
+            data = req_vals.copy()
+            data["id"] = job_id
+            data["sha"] = req_vals["commit"]
+            data["kind"] = kind
+            c.execute(sql, data)
+
     def store_zeek_result(
         self,
         *,

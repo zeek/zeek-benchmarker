@@ -9,6 +9,7 @@ app = zeek_benchmarker.app.create_app(
     config={
         "HMAC_KEY": cfg["HMAC_KEY"],
         "ALLOWED_BUILD_URLS": cfg["ALLOWED_BUILD_URLS"],
+        "DATABASE_FILE": cfg["DATABASE_FILE"],
     }
 )
 

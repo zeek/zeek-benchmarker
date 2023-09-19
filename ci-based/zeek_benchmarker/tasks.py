@@ -251,6 +251,20 @@ class Job:
     # Just the filename from build_path
     build_filename: str = None
 
+    # This is the actual original branch
+    # name as submitted through the API.
+    branch: str = None
+
+    # Extra information from the API
+    cirrus_repo_owner: str = None
+    cirrus_repo_name: str = None
+    cirrus_task_id: int = None
+    cirrus_build_id: int = None
+    cirrus_pr: int = None
+    cirrus_pr_labels: str = None
+    github_check_suite_id: int = None
+    repo_version: str = None
+
     @property
     def install_volume(self) -> str:
         """

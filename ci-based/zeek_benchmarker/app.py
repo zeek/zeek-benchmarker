@@ -8,6 +8,7 @@ import rq
 import zeek_benchmarker.tasks
 from flask import Flask, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, Forbidden
+from zeek_benchmarker import storage
 
 
 def is_allowed_build_url_prefix(url):
@@ -102,6 +103,8 @@ def parse_request(req):
     if not is_valid_branch_name(branch):
         raise BadRequest("Missing or invalid branch")
 
+    req_vals["branch"] = branch
+
     build_url = request.args.get("build", None)
     if not build_url:
         raise BadRequest("Build argument required")
@@ -132,6 +135,17 @@ def parse_request(req):
     req_vals["remote"] = remote_build
     req_vals["normalized_branch"] = normalized_branch
     req_vals["commit"] = request.args.get("commit", "")
+
+    # These values are mostly relevant for the jobs table.
+    req_vals["cirrus_repo_owner"] = request.args.get("cirrus_repo_owner", None)
+    req_vals["cirrus_repo_name"] = request.args.get("cirrus_repo_name", None)
+    req_vals["cirrus_task_id"] = request.args.get("cirrus_task_id", None)
+    req_vals["cirrus_build_id"] = request.args.get("cirrus_build_id", None)
+    req_vals["cirrus_pr"] = request.args.get("cirrus_pr", None)
+    req_vals["cirrus_pr_labels"] = request.args.get("cirrus_pr_labels", None)
+    req_vals["github_check_suite_id"] = request.args.get("github_check_suite_id", None)
+    req_vals["repo_version"] = request.args.get("repo_version", None)
+
     return req_vals
 
 
@@ -169,6 +183,15 @@ def create_app(*, config=None):
         # At this point we've validated the request and just
         # enqueue it for the worker to pick up.
         job = enqueue_job(zeek_benchmarker.tasks.zeek_job, req_vals)
+
+        # Store information about this job, too.
+        store = storage.Storage(app.config["DATABASE_FILE"])
+        store.store_job(
+            job_id=job.id,
+            kind="zeek",
+            req_vals=req_vals,
+        )
+
         return jsonify(
             {
                 "job": {
