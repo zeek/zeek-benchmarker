@@ -470,12 +470,16 @@ class ZeekJob(Job):
                     result=result,
                 )
             except ResultNotFound:
-                logger.error(
-                    "Missing result (%s) stdout=%s stderr=%s",
-                    proc.returncode,
-                    proc.stdout,
-                    proc.stderr,
+                error = (
+                    f"Missing result {proc.returncode} "
+                    f"stdout={proc.stdout} stderr={proc.stderr}"
                 )
+                logger.error(error)
+                store.store_zeek_error(job=self, test=t, test_run=i, error=error)
+            except Exception as e:
+                error = f"Unhandled exception {e}"
+                logger.exception(error)
+                store.store_zeek_error(job=self, test=t, test_run=i, error=error)
 
     def _process(self):
         cfg = config.get()

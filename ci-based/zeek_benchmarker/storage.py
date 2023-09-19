@@ -95,6 +95,48 @@ class Storage:
             data["success"] = True
             c.execute(sql, data)
 
+    def store_zeek_error(
+        self,
+        *,
+        job: "zeek_benchmarker.tasks.ZeekJob",  # noqa: F821
+        test: "zeek_benchmarker.tasks.ZeekTest",  # noqa: F821
+        test_run: int,
+        error: str,
+    ):
+        """
+        Set success=False and store the error message.
+        """
+        with sqlite3.connect(self._filename) as conn:
+            c = conn.cursor()
+            sql = """INSERT INTO zeek_tests (
+                         job_id,
+                         test_id,
+                         test_run,
+                         sha,
+                         branch,
+                         success,
+                         error
+                    ) VALUES (
+                        :job_id,
+                        :test_id,
+                        :test_run,
+                        :sha,
+                        :branch,
+                        :success,
+                        :error
+                    )"""
+
+            data = {
+                "job_id": job.job_id,
+                "sha": job.commit,
+                "branch": job.original_branch,
+                "test_id": test.test_id,
+                "test_run": test_run,
+                "success": False,
+                "error": error,
+            }
+            c.execute(sql, data)
+
 
 def get() -> Storage:
     """
