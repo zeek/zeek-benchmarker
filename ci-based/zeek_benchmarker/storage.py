@@ -24,22 +24,6 @@ class Storage:
         """
         with sqlite3.connect(self._filename) as conn:
             c = conn.cursor()
-            c.execute(
-                """CREATE TABLE IF NOT EXISTS "zeek_tests" (
-                       "id" integer primary key autoincrement not null,
-                       "ts" datetime default (STRFTIME('%s')),
-                       "stamp" datetime default (datetime('now', 'localtime')),
-                       "job_id" text not null,
-                       "test_id" text not null,
-                       "test_run" integer not null,
-                       "elapsed_time" float not null,
-                       "user_time" float not null,
-                       "system_time" float not null,
-                       "max_rss" float not null,
-                       "sha" text,
-                       "branch" text);"""
-            )
-
             sql = """INSERT INTO zeek_tests (
                          job_id,
                          test_id,
@@ -49,7 +33,8 @@ class Storage:
                          system_time,
                          max_rss,
                          sha,
-                         branch
+                         branch,
+                         success
                     ) VALUES (
                         :job_id,
                         :test_id,
@@ -59,13 +44,15 @@ class Storage:
                         :system_time,
                         :max_rss,
                         :sha,
-                        :branch
+                        :branch,
+                        :success
                     )"""
             data = result._asdict()
             data["job_id"] = job.job_id
             data["sha"] = job.commit
             data["branch"] = job.original_branch
             data["test_id"] = test.test_id
+            data["success"] = True
             c.execute(sql, data)
 
 
