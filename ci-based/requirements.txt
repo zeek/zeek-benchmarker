@@ -1,5 +1,7 @@
-Flask
-requests
-cryptography
-six
-pyyaml
+Flask==2.3.3
+PyYAML==6.0.1
+docker-pycreds==0.4.0
+docker==6.1.3
+gunicorn==21.2.0
+requests==2.31.0
+rq==1.15.1

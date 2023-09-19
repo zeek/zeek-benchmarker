@@ -1,108 +1,102 @@
 version: '3.3'
 
-networks:
-  zeek-internal:
-    driver: bridge
-
-# These are created with
+# The test_data volumes are created with
 # docker volume create --driver local \
 #    --opt type=none \
 #    --opt device=/path/to/data \
 #    --opt o=bind volume_name
+#
+# The zeek_install_data and app_spool_data
+# do not need to be a bind-mount, but they
+# do need to be external volumes.
 volumes:
   test_data:
     external: true
   broker_test_data:
     external: true
 
+  # build.tgz is extracted into this volume
+  zeek_install_data:
+    external: true
+
+  # /app/spool volume bind-mounted into the
+  # rq container.
+  app_spool_data:
+    external: true
+
 services:
-  zeek-base:
-    container_name: zeek
+  api:
     build:
       context: .
-      dockerfile: Dockerfile
-    cap_add:
-      - SYS_NICE
-    security_opt:
-      - "seccomp:./zeek-seccomp.json"
-    environment:
-      - TMPFS_PATH=/mnt/data/tmpfs
-      - ZEEKCPUS=${ZEEKCPUS}
-      - ZEEKPATH=/benchmarker/zeek/install/share/zeek:/benchmarker/zeek/install/share/zeek/policy:/benchmarker/zeek/install/share/zeek/site:/benchmarker/zeek/install/share/zeek/builtin-plugins:/benchmarker/zeek/install/share/zeek/builtin-plugins/Zeek_AF_Packet
-      - ZEEKSEED=/benchmarker/random.seed
-      - ZEEKBIN=/benchmarker/zeek/install/bin/zeek
-      - ZEEK_PLUGIN_PATH=/benchmarker/zeek/install/lib/zeek/plugins
-      - DATA_FILE_NAME=${DATA_FILE_NAME}
+      dockerfile: containers/api.Dockerfile
     volumes:
-      - test_data:/test_data:ro
-      - ./scripts:/benchmarker/scripts:ro
-    tmpfs: /mnt/data/tmpfs
-    networks:
-      - zeek-internal
-    command: /benchmarker/scripts/run-zeek.sh
-
-  # Environment variables that need to be set in the host environment running docker-compose:
-  # - BUILD_FILE_PATH
-  #   if remote: set to path where $BUILD_FILE_NAME is stored
-  #   if local: set to install path of zeek
-  # - BUILD_FILE_NAME (if remote, set to blank if local)
-  #   if remote: set to filename of tgz file with build
-  #   if local: set to blank
-  # - DATA_FILE_NAME
-  zeek-remote:
-    extends: zeek-base
+      # The few things the API needs could
+      # also come from the environment.
+      - ./config.yml:/app/config.yml
+    working_dir: /app
+    entrypoint:
+      - "/app/.venv/bin/gunicorn"
+      - "--bind"
+      - "0.0.0.0:8080"
+      - "--access-logfile"
+      - "-"
+      - "benchmarker:app"
     environment:
-      - IS_LOCAL=0
-      - BUILD_FILE_NAME=${BUILD_FILE_NAME}
-    volumes:
-      - ${BUILD_FILE_PATH}:/benchmarker/binaries:ro
+      - REDIS_HOST=redis
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - redis
 
-  zeek-local:
-    extends: zeek-base
-    environment:
-      - IS_LOCAL=1
-      - DATA_FILE_NAME=${DATA_FILE_NAME}
-    volumes:
-      - ${BUILD_FILE_PATH}:/benchmarker/zeek/install:ro
-
-  broker-base:
-    container_name: broker
+  rq:
+    # This is the RQ worker
     build:
       context: .
-      dockerfile: Dockerfile
-    cap_add:
-      - SYS_NICE
-    security_opt:
-      - "seccomp:./zeek-seccomp.json"
-    environment:
-      - TMPFS_PATH=/mnt/data/tmpfs
-      - DATA_FILE_NAME=${DATA_FILE_NAME}
+      dockerfile: containers/rq.Dockerfile
     volumes:
-      - broker_test_data:/test_data:ro
-      - ./scripts:/benchmarker/scripts:ro
-    tmpfs: /mnt/data/tmpfs
-    command: /benchmarker/scripts/run-broker.sh
+      - ./config.yml:/app/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - app_spool_data:/app/spool
 
-  # Environment variables that need to be set in the host environment running docker-compose:
-  # - BUILD_FILE_PATH
-  #   if remote: set to path where $BUILD_FILE_NAME is stored
-  #   if local: set to install path of broker
-  # - BUILD_FILE_NAME (if remote, set to blank if local)
-  #   if remote: set to filename of tgz file with build
-  #   if local: set to blank
-  # - DATA_FILE_NAME
-  broker-remote:
-    extends: broker-base
-    environment:
-      - IS_LOCAL=0
-      - BUILD_FILE_NAME=${BUILD_FILE_NAME}
-    volumes:
-      - ${BUILD_FILE_PATH}:/benchmarker/binaries:ro
+      # A place to store persistent data (metrics database).
+      - ./persistent:/app/persistent
 
-  broker-local:
-    extends: broker-base
+      # These files are needed to run the Zeek benchmarking
+      # containers for testing. We could make some pieces either
+      # part of the configuration, or also just include it
+      # in the worker's image.
+      - ./zeek-seccomp.json:/app/zeek-seccomp.json:ro
+    entrypoint:
+      - "/app/.venv/bin/rq"
+      - "worker"
+      - "-c"
+      - "zeek_benchmarker.rq_worker_settings"
+      - "-u"
+      - "redis://redis"
     environment:
-      - IS_LOCAL=1
-      - DATA_FILE_NAME=${DATA_FILE_NAME}
+      # Let the RQ worker know the name of volume
+      # backing its spool directory
+      - SPOOL_VOLUME=app_spool_data
+    restart: always
+    depends_on:
+      - redis
+
+  redis:
+    # Redis is accessed by api and rq.
+    build:
+      context: .
+      dockerfile: containers/redis.Dockerfile
+
+  test-http:
+    # HTTP service for faster fetching local builds.
+    image: python:3.11@sha256:cc7372fe4746ca323f18c6bd0d45dadf22d192756abc5f73e39f9c7f10cba5aa
     volumes:
-      - ${BUILD_FILE_PATH}:/benchmarker/broker/install:ro
+      - ./testing/builds:/srv/builds
+    working_dir: /srv/
+    init: true
+    entrypoint:
+      - "python3"
+      - "-m"
+      - "http.server"
+    restart: always

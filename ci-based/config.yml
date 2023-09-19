@@ -2,6 +2,14 @@
 # making requests to benchmark remote builds.
 HMAC_KEY: unset
 
+# URL prefixes  we allow fetching build artifacts from
+ALLOWED_BUILD_URLS:
+  - https://api.cirrus-ci.com/v1/artifact/build
+  - https://api.cirrus-ci.com/v1/artifact/task
+  - http://127.0.0.1:8000/
+  - http://localhost:8000/
+  - http://test-http:8000/
+
 # Filename of a pcap file used by the zeek endpoint. This should be stored in the path
 # referred to by the test_data docker volume.
 DATA_FILE: unset
@@ -12,7 +20,11 @@ BROKER_CONFIG_FILE_NAME: unset
 
 # Path to an sqlite database file that stores the metrics once they're completed for
 # viewing on grafana, etc.
-DATABASE_FILE: unset
+DATABASE_FILE: ./persistent/unset
+
+# Can be absolute or relative.
+WORK_DIR: ./spool
+
 
 # Set of two CPUs to be used by the zeek endpoint.
 CPU_SET:
@@ -23,3 +35,98 @@ CPU_SET:
 # in order to average out noise in the process. A value of 3 is a reasonable balance
 # for overall runtime for each request.
 RUN_COUNT: 3
+
+# Max time for unpacking the build archives.
+TAR_TIMEOUT: 20
+
+ZEEK_TESTS:
+  - id: pcap-ixia-ent-data-center-2-30sec-500mbps
+    pcap_file: ixia_RamEntDataCenter2_30sec_500Mbps.pcap
+
+  - id: pcap-zeek-testing-ipv6
+    pcap_file: zeek-testing-ipv6.trace
+
+  - id: pcap-zeek-testing-2009-m57-day11-18
+    pcap_file: 2009-M57-day11-18.trace
+
+  - id: pcap-50k-tcp-conns
+    pcap_file: 50k-tcp-conns.pcap
+
+  - id: micro-misc-zeek-version
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
+
+  - id: micro-table-ops-simple-key-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/simple-key-value.zeek
+
+  - id: micro-table-ops-complex-key-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/complex-key-value.zeek
+
+  - id: micro-table-ops-complex-key-value-2
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/complex-key-value-2.zeek
+
+  - id: micro-table-ops-copy
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/copy.zeek
+
+  - id: micro-logging-tsv-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek
+
+  - id: micro-logging-tsv-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek
+
+  - id: micro-logging-json-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek  LogAscii::use_json=T
+
+  - id: micro-logging-json-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek LogAscii::use_json=T
+
+  - id: micro-logging-writer-none-one-stream
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/one-stream.zeek Log::default_writer=Log::WRITER_NONE
+
+  - id: micro-logging-writer-none-two-streams
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/logging/two-streams.zeek Log::default_writer=Log::WRITER_NONE
+
+  - id: micro-function-calls-bifs
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/function-calls/bifs.zeek
+
+  - id: micro-function-calls-recursion
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/function-calls/recursion.zeek
+
+  - id: micro-patterns-basic
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/patterns/basic.zeek
+
+rq:
+  logging:
+    dict_config:
+      version: 1
+      disable_existing_loggers: false
+      formatters:
+        standard:
+          format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+      handlers:
+        default:
+          formatter: "standard"
+          class: "logging.StreamHandler"
+          stream: "ext://sys.stderr"  # Default is stderr
+      loggers:
+        root:
+          handlers: ["default"]
+          level: "INFO"
+          propagate: false
+
+        zeek_benchmarker.tasks:
+          level: "DEBUG"
+          propagate: true
