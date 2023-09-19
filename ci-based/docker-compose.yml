@@ -33,6 +33,10 @@ services:
       # The few things the API needs could
       # also come from the environment.
       - ./config.yml:/app/config.yml
+
+      # Let the API record information about
+      # jobs in the database.
+      - ./persistent:/app/persistent
     working_dir: /app
     entrypoint:
       - "/app/.venv/bin/gunicorn"
