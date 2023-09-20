@@ -21,6 +21,11 @@ class TestContainerRunner(unittest.TestCase):
 
     def setUp(self):
         self._client_mock = mock.Mock(spec=docker.client.DockerClient)
+        self._container_mock = mock.Mock(spec=docker.models.containers.Container)
+        self._client_mock.containers.run.return_value = self._container_mock
+        self._container_mock.wait.return_value = {"StatusCode": 0}
+        self._container_mock.logs.return_value = "fake-logs"
+
         self._cr = zeek_benchmarker.tasks.ContainerRunner(client=self._client_mock)
         self.test_path = self.test_spool / "fake-job-id/build.tgz"
 
@@ -92,3 +97,49 @@ class TestContainerRunner(unittest.TestCase):
         self.assertEqual("test-spool-volume", source_volume["Source"])
         self.assertEqual("/source", source_volume["Target"])
         self.assertTrue(source_volume["ReadOnly"])
+
+    def test__runc(self):
+        result = self._cr.runc(
+            image="test-image",
+            command="test-exit 1",
+            env={},
+            seccomp_profile={},
+            install_volume="test-install-volume",
+            install_target="/test/install",
+            test_data_volume="test_data",
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertEqual("fake-logs", result.stdout)
+        self.assertEqual("fake-logs", result.stderr)
+
+    def test__runc_command__failed(self):
+        self._container_mock.wait.return_value = {"StatusCode": 1}
+
+        with self.assertRaises(zeek_benchmarker.tasks.CommandFailed):
+            self._cr.runc(
+                image="test-image",
+                command="test-exit 1",
+                env={},
+                seccomp_profile={},
+                install_volume="test-install-volume",
+                install_target="/test/install",
+                test_data_volume="test_data",
+            )
+
+    def test__runc__tmpfs(self):
+        self._cr.runc(
+            image="test-image",
+            command="test-exit 1",
+            env={},
+            seccomp_profile={},
+            install_volume="test-install-volume",
+            install_target="/test/install",
+            test_data_volume="test_data",
+        )
+
+        # Regression test for env not being populated with TMPFS_PATH
+        run_kwargs = self._client_mock.containers.run.call_args[1]
+        self.assertEqual("/mnt/data/tmpfs", run_kwargs["environment"]["TMPFS_PATH"])
+        self.assertEqual("/run", run_kwargs["environment"]["RUN_PATH"])
+        self.assertEqual("", run_kwargs["tmpfs"]["/mnt/data/tmpfs"])
+        self.assertEqual("", run_kwargs["tmpfs"]["/run"])

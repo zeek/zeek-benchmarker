@@ -31,10 +31,9 @@ CPU_SET:
   - 1
   - 2
 
-# This is the number of loops that the zeek benchmarker will run against the data file
-# in order to average out noise in the process. A value of 3 is a reasonable balance
-# for overall runtime for each request.
-RUN_COUNT: 3
+# Default number of times each test runs. Can be overridden by providing
+# a runs key within each test.
+RUN_COUNT: 5
 
 # Max time for unpacking the build archives.
 TAR_TIMEOUT: 20
@@ -52,9 +51,25 @@ ZEEK_TESTS:
   - id: pcap-50k-tcp-conns
     pcap_file: 50k-tcp-conns.pcap
 
+  - id: pcap-much-alexa-https-top-100
+    pcap_file: much-alexa-https-top-100.pcap
+
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
+
+  # Same as above, but not bare and load test-all-policy, too.
+  - id: micro-misc-zeek-version-all-policy
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D test-all-policy microbenchmarks/misc/zeek-version.zeek
+
+  - id: micro-vector-ops-simple-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/vector-ops/simple-value.zeek
+
+  - id: micro-vector-ops-complex-value
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/vector-ops/complex-value.zeek
 
   - id: micro-table-ops-simple-key-value
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
@@ -103,6 +118,10 @@ ZEEK_TESTS:
   - id: micro-function-calls-recursion
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/function-calls/recursion.zeek
+
+  - id: micro-function-calls-many
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/function-calls/many.zeek
 
   - id: micro-patterns-basic
     bench_command: /benchmarker/scripts/tiny-benchmark.sh

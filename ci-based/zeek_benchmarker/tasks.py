@@ -39,6 +39,12 @@ class InvalidChecksum(Error):
     pass
 
 
+class CommandFailed(Error):
+    """Raised when the command within the container has a non-zero exit status."""
+
+    pass
+
+
 Env = dict[str, str]
 
 
@@ -73,7 +79,6 @@ class ContainerRunner:
         test_data_target: str = "/test_data",
         timeout: float = None,
         cap_add: list[str] | None = None,
-        tmpfs: list[str] | None = None,
         network_disabled: bool = True,
     ):
         """
@@ -93,12 +98,14 @@ class ContainerRunner:
 
         cap_add = cap_add or ["SYS_NICE"]
         default_tmpfs_path = "/mnt/data/tmpfs"
-        tmpfs = tmpfs or {
+        default_run_path = "/run"
+        tmpfs = {
             default_tmpfs_path: "",
+            default_run_path: "",
         }
 
-        if not tmpfs:
-            env["TMPFS_PATH"] = default_tmpfs_path
+        env["TMPFS_PATH"] = default_tmpfs_path
+        env["RUN_PATH"] = default_run_path
 
         mounts = [
             docker.types.Mount(
@@ -119,6 +126,7 @@ class ContainerRunner:
 
         container = self._client.containers.run(
             image=image,
+            working_dir=default_run_path,
             command=command,
             detach=True,
             cap_add=cap_add,
@@ -140,6 +148,10 @@ class ContainerRunner:
                 result.stdout,
                 result.stderr,
             )
+
+            if result.returncode:
+                raise CommandFailed(result)
+
             return result
         finally:
             container.remove(force=True)
@@ -395,10 +407,10 @@ class ZeekTest(typing.NamedTuple):
     skip: bool = None
 
     @staticmethod
-    def from_dict(d: dict[str, any]):
+    def from_dict(cfg: config.Config, d: dict[str, any]):
         return ZeekTest(
             test_id=d["id"],
-            runs=d.get("runs", 3),
+            runs=d.get("runs", cfg.run_count),
             bench_command=d.get("bench_command"),
             bench_args=d.get("bench_args"),
             pcap=d.get("pcap_file"),
@@ -477,14 +489,14 @@ class ZeekJob(Job):
                 logger.error(error)
                 store.store_zeek_error(job=self, test=t, test_run=i, error=error)
             except Exception as e:
-                error = f"Unhandled exception {e}"
+                error = f"Unhandled exception {type(e)} {e}"
                 logger.exception(error)
                 store.store_zeek_error(job=self, test=t, test_run=i, error=error)
 
     def _process(self):
         cfg = config.get()
         for t in cfg["ZEEK_TESTS"]:
-            zeek_test = ZeekTest.from_dict(t)
+            zeek_test = ZeekTest.from_dict(cfg, t)
             self.run_zeek_test(zeek_test)
 
 
