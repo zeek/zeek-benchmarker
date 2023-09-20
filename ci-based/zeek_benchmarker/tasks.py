@@ -405,10 +405,10 @@ class ZeekTest(typing.NamedTuple):
     skip: bool = None
 
     @staticmethod
-    def from_dict(d: dict[str, any]):
+    def from_dict(cfg: config.Config, d: dict[str, any]):
         return ZeekTest(
             test_id=d["id"],
-            runs=d.get("runs", 3),
+            runs=d.get("runs", cfg.run_count),
             bench_command=d.get("bench_command"),
             bench_args=d.get("bench_args"),
             pcap=d.get("pcap_file"),
@@ -494,7 +494,7 @@ class ZeekJob(Job):
     def _process(self):
         cfg = config.get()
         for t in cfg["ZEEK_TESTS"]:
-            zeek_test = ZeekTest.from_dict(t)
+            zeek_test = ZeekTest.from_dict(cfg, t)
             self.run_zeek_test(zeek_test)
 
 

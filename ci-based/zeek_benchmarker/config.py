@@ -22,6 +22,10 @@ class Config:
     def zeek_cpus(self) -> str:
         return ",".join(str(c) for c in self._d["CPU_SET"])
 
+    @property
+    def run_count(self) -> int:
+        return self._d["RUN_COUNT"]
+
     def __getitem__(self, k: str, default: typing.Any = None):
         """
         Allow dictionary key lookups.
