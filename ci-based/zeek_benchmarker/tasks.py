@@ -79,7 +79,6 @@ class ContainerRunner:
         test_data_target: str = "/test_data",
         timeout: float = None,
         cap_add: list[str] | None = None,
-        tmpfs: list[str] | None = None,
         network_disabled: bool = True,
     ):
         """
@@ -99,12 +98,14 @@ class ContainerRunner:
 
         cap_add = cap_add or ["SYS_NICE"]
         default_tmpfs_path = "/mnt/data/tmpfs"
-        tmpfs = tmpfs or {
+        default_run_path = "/run"
+        tmpfs = {
             default_tmpfs_path: "",
+            default_run_path: "",
         }
 
-        if not tmpfs:
-            env["TMPFS_PATH"] = default_tmpfs_path
+        env["TMPFS_PATH"] = default_tmpfs_path
+        env["RUN_PATH"] = default_run_path
 
         mounts = [
             docker.types.Mount(
@@ -125,6 +126,7 @@ class ContainerRunner:
 
         container = self._client.containers.run(
             image=image,
+            working_dir=default_run_path,
             command=command,
             detach=True,
             cap_add=cap_add,

@@ -11,6 +11,11 @@ if [ -n "${BENCH_COMMAND}" ] && [ -n "${BENCH_ARGS}" ]; then
     exit 1
 fi
 
+if [ -z "${DATA_FILE_NAME}" ] || [ -z "${TMPFS_PATH}" ]; then
+    echo "DATA_FILE_NAME or TMPFS_PATH not set" >&2
+    exit 1
+fi
+
 cp /test_data/${DATA_FILE_NAME} ${TMPFS_PATH}/${DATA_FILE_NAME}
 timeout --signal=SIGKILL 5m /benchmarker/scripts/perf-benchmark.sh --quiet --parseable --mode file \
     --seed ${ZEEKSEED} --build ${ZEEKBIN} --data-file ${TMPFS_PATH}/${DATA_FILE_NAME} \
