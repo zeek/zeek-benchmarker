@@ -4,6 +4,12 @@ import typing
 import yaml
 
 
+class SMTPSettings(typing.NamedTuple):
+    mailhost: tuple[str, int]
+    credentials: tuple[str, str]
+    fromaddr: str
+
+
 class Config:
     _config: "Config" = None
 
@@ -31,6 +37,18 @@ class Config:
         Allow dictionary key lookups.
         """
         return self._d.get(k, default)
+
+    @property
+    def smtp_settings(self) -> SMTPSettings:
+        smtp = self["smtp"]
+        mailhost = (smtp["host"], int(smtp.get("port", 587)))
+        credentials = (smtp["credentials"]["username"], smtp["credentials"]["password"])
+
+        return SMTPSettings(
+            mailhost=mailhost,
+            credentials=credentials,
+            fromaddr=smtp["fromaddr"],
+        )
 
 
 def get():
