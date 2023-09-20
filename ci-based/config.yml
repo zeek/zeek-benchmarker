@@ -121,12 +121,28 @@ rq:
           formatter: "standard"
           class: "logging.StreamHandler"
           stream: "ext://sys.stderr"  # Default is stderr
+        smtp:
+          formatter: "standard"
+          class: "zeek_benchmarker.logging.SMTPHandler"
+          level: "ERROR"
+          subject_prefix: "zeek-benchmarker"
+          toaddrs:
+            - arne.welzel@corelight.com
       loggers:
         root:
-          handlers: ["default"]
+          handlers: ["default", "smtp"]
           level: "INFO"
-          propagate: false
 
         zeek_benchmarker.tasks:
           level: "DEBUG"
           propagate: true
+
+
+# SMTP settings used for email.
+smtp:
+  credentials:
+    username: unset
+    password: unset
+  host: email-smtp.us-east-1.amazonaws.com
+  port: 587
+  fromaddr: zeek-benchmarker@zeek.org
