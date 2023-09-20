@@ -39,6 +39,12 @@ class InvalidChecksum(Error):
     pass
 
 
+class CommandFailed(Error):
+    """Raised when the command within the container has a non-zero exit status."""
+
+    pass
+
+
 Env = dict[str, str]
 
 
@@ -140,6 +146,10 @@ class ContainerRunner:
                 result.stdout,
                 result.stderr,
             )
+
+            if result.returncode:
+                raise CommandFailed(result)
+
             return result
         finally:
             container.remove(force=True)
@@ -477,7 +487,7 @@ class ZeekJob(Job):
                 logger.error(error)
                 store.store_zeek_error(job=self, test=t, test_run=i, error=error)
             except Exception as e:
-                error = f"Unhandled exception {e}"
+                error = f"Unhandled exception {type(e)} {e}"
                 logger.exception(error)
                 store.store_zeek_error(job=self, test=t, test_run=i, error=error)
 
