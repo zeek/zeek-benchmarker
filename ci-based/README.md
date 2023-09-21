@@ -22,6 +22,9 @@ It uses Docker for privilege separation when running the benchmark scripts.
     sudo docker-compose build
     sudo docker build -f Dockerfile . -t zeek-benchmarker-zeek-runner
 
+   The latter can be accomplished by running `sudo make` within the `ci-based`
+   directory.
+
 3. Edit the config.yml and set the values as described in that file.
 
 4. Using `alembic`, initialize the database:
@@ -30,6 +33,23 @@ It uses Docker for privilege separation when running the benchmark scripts.
 
 5. Run `docker-compose up`. You may want to configure systemd such
    that the `docker-compose up` runs at boot time.
+
+## Adding Micro Benchmarks
+
+1. Navigate to `scripts/microbenchmarks` and use or create a new directory.
+
+2. Create a script that runs for 10 to 20 seconds. Currently there's no
+   parameterization. We record elapsed, user and system time as well
+   as max_rss usage of the Zeek process.
+
+3. Create an entry in the `config.yml` file with `bench_command` and
+   `bench_args` keys.
+
+4. When deploying a new version of `zeek-benchmarker`, make sure to rebuild
+   the `zeek-benchmarker-zeek-runner` image as it holds a copy of all
+   benchmarker scripts.
+
+5. Restart the docker-compose deployment. Submit a job for testing.
 
 
 ## Supported Endpoints

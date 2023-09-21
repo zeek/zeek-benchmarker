@@ -54,6 +54,9 @@ ZEEK_TESTS:
   - id: pcap-much-alexa-https-top-100
     pcap_file: much-alexa-https-top-100.pcap
 
+  - id: pcap-500k-syns
+    pcap_file: 500k-syns.pcap
+
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
@@ -86,6 +89,14 @@ ZEEK_TESTS:
   - id: micro-table-ops-copy
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/table-ops/copy.zeek
+
+  - id: micro-table-ops-small-table-simple-key
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/small-table-simple-key.zeek
+
+  - id: micro-table-ops-small-table-complex-key
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/small-table-complex-key.zeek
 
   - id: micro-logging-tsv-one-stream
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
