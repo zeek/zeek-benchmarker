@@ -80,6 +80,7 @@ class TestApi(TestWithDatabase):
                 "cirrus_repo_owner": "test-owner",
                 "cirrus_repo_name": "test-name",
                 "cirrus_task_id": 123,
+                "cirrus_task_name": "test-task-name",
                 "cirrus_build_id": 9,
                 "cirrus_pr": 456,
                 "github_check_suite_id": 789,
@@ -109,6 +110,7 @@ class TestApi(TestWithDatabase):
             self.assertEqual("test-owner", row["cirrus_repo_owner"])
             self.assertEqual("test-name", row["cirrus_repo_name"])
             self.assertEqual(123, row["cirrus_task_id"])
+            self.assertEqual("test-task-name", row["cirrus_task_name"])
             self.assertEqual(9, row["cirrus_build_id"])
             self.assertEqual(456, row["cirrus_pr"])
             self.assertEqual(789, row["github_check_suite_id"])
@@ -170,7 +172,7 @@ class TestApi(TestWithDatabase):
             },
         )
         self.assertEqual(400, r.status_code)
-        self.assertIn("issing or invalid branch", r.text)
+        self.assertIn("Missing or invalid branch", r.text)
 
 
 class TestBranchName(unittest.TestCase):

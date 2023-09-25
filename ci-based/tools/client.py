@@ -26,7 +26,15 @@ class Client:
         self._hmac_key = hmac_key
 
     def _submit_build(
-        self, *, path, branch, build_url, build_hash, commit=None, hmac_ts=None
+        self,
+        *,
+        path,
+        branch,
+        build_url,
+        build_hash,
+        commit=None,
+        cirrus_task_name=None,
+        hmac_ts=None,
     ):
         """ """
         hmac_ts = int(time.time()) if hmac_ts is None else hmac_ts
@@ -42,6 +50,9 @@ class Client:
         if commit:
             params["commit"] = commit
 
+        if cirrus_task_name:
+            params["cirrus_task_name"] = cirrus_task_name
+
         hmac_msg = f"{path:s}-{hmac_ts:d}-{build_hash:s}\n".encode()
         hmac_digest = hmac.digest(self._hmac_key, hmac_msg, "sha256").hex()
         headers = {
@@ -53,7 +64,16 @@ class Client:
         r.raise_for_status()
         return r
 
-    def submit_zeek(self, *, branch, build_url, build_hash, commit=None, hmac_ts=None):
+    def submit_zeek(
+        self,
+        *,
+        branch,
+        build_url,
+        build_hash,
+        commit=None,
+        cirrus_task_name=None,
+        hmac_ts=None,
+    ):
         """
         Submit a benchmark request to /zeek
         """
@@ -63,11 +83,19 @@ class Client:
             build_url=build_url,
             build_hash=build_hash,
             commit=commit,
+            cirrus_task_name=cirrus_task_name,
             hmac_ts=hmac_ts,
         )
 
     def submit_broker(
-        self, *, branch, build_url, build_hash, commit=None, hmac_ts=None
+        self,
+        *,
+        branch,
+        build_url,
+        build_hash,
+        commit=None,
+        cirrus_task_name=None,
+        hmac_ts=None,
     ):
         """
         Submit a benchmark request to /broker
@@ -78,6 +106,7 @@ class Client:
             build_url=build_url,
             build_hash=build_hash,
             commit=commit,
+            cirrus_task_name=cirrus_task_name,
             hmac_ts=hmac_ts,
         )
 
@@ -88,6 +117,7 @@ def main():
     p.add_argument("--hmac-key", type=lambda s: s.encode(), default="unset")
     p.add_argument("--build-url", type=str, default="")
     p.add_argument("--build-hash", type=str, default=None, required=True)
+    p.add_argument("--cirrus-task-name", type=str, default=None, required=True)
     p.add_argument("--commit", type=str, default=None)
     p.add_argument("what", choices=["broker", "zeek"])
     p.add_argument("branch")
@@ -109,6 +139,7 @@ def main():
             build_url=args.build_url,
             build_hash=args.build_hash,
             commit=args.commit,
+            cirrus_task_name=args.cirrus_task_name,
         )
         r.raise_for_status()
         print(r.json())
