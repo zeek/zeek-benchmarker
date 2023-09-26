@@ -54,6 +54,12 @@ ZEEK_TESTS:
   - id: pcap-much-alexa-https-top-100
     pcap_file: much-alexa-https-top-100.pcap
 
+  - id: pcap-much-alexa-dns-top-100
+    pcap_file: much-alexa-dns-top-100.pcap
+
+  - id: pcap-http-many-smaller
+    pcap_file: pcap-http-many-smaller.pcap
+
   - id: pcap-500k-syns
     pcap_file: 500k-syns.pcap
 
