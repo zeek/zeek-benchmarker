@@ -140,6 +140,7 @@ def parse_request(req):
     req_vals["cirrus_repo_owner"] = request.args.get("cirrus_repo_owner", None)
     req_vals["cirrus_repo_name"] = request.args.get("cirrus_repo_name", None)
     req_vals["cirrus_task_id"] = request.args.get("cirrus_task_id", None)
+    req_vals["cirrus_task_name"] = request.args.get("cirrus_task_name", None)
     req_vals["cirrus_build_id"] = request.args.get("cirrus_build_id", None)
     req_vals["cirrus_pr"] = request.args.get("cirrus_pr", None)
     req_vals["cirrus_pr_labels"] = request.args.get("cirrus_pr_labels", None)

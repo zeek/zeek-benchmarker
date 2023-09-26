@@ -271,6 +271,7 @@ class Job:
     cirrus_repo_owner: str = None
     cirrus_repo_name: str = None
     cirrus_task_id: int = None
+    cirrus_task_name: str = None
     cirrus_build_id: int = None
     cirrus_pr: int = None
     cirrus_pr_labels: str = None
