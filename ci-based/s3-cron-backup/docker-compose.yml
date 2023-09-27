@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  os-perf-1-zeek-benchmarker-backup:
+    build:
+      context: .
+      dockerfile: containers/backup.Dockerfile
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET_URL=s3://zeek-benchmarker-backup/
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - CRON_SCHEDULE=7 3,15 * * *  # run twice a day
+      - BACKUP_NAME=os-perf-1.zeek-benchmarker-backup
+    volumes:
+      - /usr/local/zeek-benchmarker/ci-based/persistent:/data/ci-based/persistent:ro
+      - /var/lib/grafana/grafana.db:/data/grafana/grafana.db:ro
+    # Always should also restart the container when the system reboots.
+    restart: always
