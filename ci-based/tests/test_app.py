@@ -1,14 +1,19 @@
 import datetime
 import hmac
-import sqlite3
 import time
 import unittest
 from unittest import mock
 
 from zeek_benchmarker.app import create_app, is_valid_branch_name
+from zeek_benchmarker.models import Job, Machine
 from zeek_benchmarker.testing import TestWithDatabase
 
 
+def test_machine():
+    return Machine(dmi_product_uuid="ec2abcdef-1234", os="Linux")
+
+
+@mock.patch("zeek_benchmarker.machine.get_machine", new_callable=lambda: test_machine)
 @mock.patch("zeek_benchmarker.app.enqueue_job")
 class TestApi(TestWithDatabase):
     def setUp(self):
@@ -45,7 +50,7 @@ class TestApi(TestWithDatabase):
         hmac_msg = f"{path:s}-{timestamp:d}-{build_hash:s}\n".encode()
         return hmac.new(self._test_hmac_key, hmac_msg, "sha256").hexdigest()
 
-    def test_zeek_good(self, enqueue_job_mock):
+    def test_zeek_good(self, enqueue_job_mock, get_machine_mock):
         enqueue_job_mock.return_value = self.enqueue_job_result_mock
 
         r = self._test_client.post(
@@ -67,7 +72,17 @@ class TestApi(TestWithDatabase):
             self._test_build_hash, enqueue_job_mock.call_args[0][1]["build_hash"]
         )
 
-    def test_zeek_good__more(self, enqueue_job_mock):
+        # Query the databse for the stored Job and Machine and
+        # ensure they are connected.
+        with self.storage.Session() as session:
+            jobs = session.query(Job).all()
+            machine = session.query(Machine).first()
+
+        self.assertEqual(1, len(jobs))
+        self.assertEqual("test-job-id", jobs[0].id)
+        self.assertEqual(machine.id, jobs[0].machine_id)
+
+    def test_zeek_good__more(self, enqueue_job_mock, get_machine_mock):
         enqueue_job_mock.return_value = self.enqueue_job_result_mock
 
         r = self._test_client.post(
@@ -98,25 +113,26 @@ class TestApi(TestWithDatabase):
             self._test_build_hash, enqueue_job_mock.call_args[0][1]["build_hash"]
         )
 
-        with sqlite3.connect(self.database_file.name) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = list(conn.execute("select * from jobs"))
-            self.assertEqual(1, len(rows))
-            row = rows[0]
-            self.assertEqual("zeek", row["kind"])
-            self.assertEqual(self._test_build_hash, row["build_hash"])
-            self.assertEqual("f572d396fae9206628714fb2ce00f72e94f2258f", row["sha"])
-            self.assertEqual("test-branch", row["branch"])
-            self.assertEqual("test-owner", row["cirrus_repo_owner"])
-            self.assertEqual("test-name", row["cirrus_repo_name"])
-            self.assertEqual(123, row["cirrus_task_id"])
-            self.assertEqual("test-task-name", row["cirrus_task_name"])
-            self.assertEqual(9, row["cirrus_build_id"])
-            self.assertEqual(456, row["cirrus_pr"])
-            self.assertEqual(789, row["github_check_suite_id"])
-            self.assertEqual("6.1.0-dev.123", row["repo_version"])
+        # Query the databse for the stored Job and Machine and
+        # ensure they are connected.
+        with self.storage.Session() as session:
+            jobs = session.query(Job).all()
+            self.assertEqual(1, len(jobs))
+            job = jobs[0]
+            self.assertEqual("zeek", job.kind)
+            self.assertEqual(self._test_build_hash, job.build_hash)
+            self.assertEqual("f572d396fae9206628714fb2ce00f72e94f2258f", job.sha)
+            self.assertEqual("test-branch", job.branch)
+            self.assertEqual("test-owner", job.cirrus_repo_owner)
+            self.assertEqual("test-name", job.cirrus_repo_name)
+            self.assertEqual(123, job.cirrus_task_id)
+            self.assertEqual("test-task-name", job.cirrus_task_name)
+            self.assertEqual(9, job.cirrus_build_id)
+            self.assertEqual(456, job.cirrus_pr)
+            self.assertEqual(789, job.github_check_suite_id)
+            self.assertEqual("6.1.0-dev.123", job.repo_version)
 
-    def test_zeek_bad_build_url(self, enqueue_job_mock):
+    def test_zeek_bad_build_url(self, enqueue_job_mock, get_machine_mock):
         enqueue_job_mock.return_value = self.enqueue_job_result_mock
 
         r = self._test_client.post(
@@ -136,7 +152,7 @@ class TestApi(TestWithDatabase):
 
         enqueue_job_mock.assert_not_called()
 
-    def test_zeek_bad_hmac_digest(self, enqueue_job_mock):
+    def test_zeek_bad_hmac_digest(self, enqueue_job_mock, get_machine_mock):
         enqueue_job_mock.return_value = self.enqueue_job_result_mock
 
         r = self._test_client.post(
@@ -156,7 +172,7 @@ class TestApi(TestWithDatabase):
 
         enqueue_job_mock.assert_not_called()
 
-    def test_zeek_bad_branch(self, enqueue_job_mock):
+    def test_zeek_bad_branch(self, enqueue_job_mock, get_machine_mock):
         enqueue_job_mock.return_value = self.enqueue_job_result_mock
 
         r = self._test_client.post(

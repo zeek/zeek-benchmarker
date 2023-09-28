@@ -5,6 +5,7 @@ import unittest
 
 import alembic.command
 import alembic.config
+from zeek_benchmarker import storage
 
 
 class TestWithDatabase(unittest.TestCase):
@@ -21,6 +22,8 @@ class TestWithDatabase(unittest.TestCase):
             "sqlalchemy.url", f"sqlite:///{self.database_file.name}"
         )
         alembic.command.upgrade(alembic_config, "head")
+
+        self.storage = storage.Storage(self.database_file.name)
 
     def tearDown(self):
         os.unlink(self.database_file.name)

@@ -8,8 +8,8 @@ for dealing with database migrations.
 ### Initializing a database
 
 To initialize a new database, update the `sqlalchemy.url` setting in the
-`alembic.ini` to the database file you want to use (default is `persistent/metrics2.db`).
-The run the following command to apply all migrations.
+`alembic.ini` file to the database file you want to use (default is `persistent/metrics2.db`).
+Then run the following command to apply all migrations:
 
     # alembic upgrade head
 
@@ -23,14 +23,14 @@ To modify the current database schema to add a table or column, use `alembic rev
 Now, edit the generated file in the `alembic/versions/` directory. Specifically,
 fill out the `upgrade()` and `downgrade()` methods. The existing migrations provide
 examples.
-The [Alembic tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#create-a-migration-script) may be useful, too.
+The [Alembic tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#create-a-migration-script) may be useful too.
 
 
 To test the migration, run `upgrade` against the database
 
     # alembic upgrade head
 
-To test the `downgrade()` method revert to the prior version, using `downgrade`:
+To test the `downgrade()` method, revert to the prior version using `downgrade`:
 
     # alembic downgrade -1  (or use the previous revision identifier explicitly)
 
