@@ -34,9 +34,6 @@ services:
       # also come from the environment.
       - ./config.yml:/app/config.yml
 
-      # Allow the API access to the host machine's machine-id.
-      - /etc/machine-id:/etc/machine-id
-
       - ./persistent:/app/persistent
     working_dir: /app
     entrypoint:
