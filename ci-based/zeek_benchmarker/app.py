@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 import redis
 import rq
+import zeek_benchmarker.machine
 import zeek_benchmarker.tasks
 from flask import Flask, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, Forbidden
@@ -187,9 +188,15 @@ def create_app(*, config=None):
 
         # Store information about this job, too.
         store = storage.Storage(app.config["DATABASE_FILE"])
+
+        # Store the machine information with the job. The assumption
+        # here is that the system serving the API is also executing
+        # the job. Otherwise this would need to move into tasks.py.
+        machine = store.get_or_create_machine(zeek_benchmarker.machine.get_machine())
         store.store_job(
             job_id=job.id,
             kind="zeek",
+            machine_id=machine.id,
             req_vals=req_vals,
         )
 

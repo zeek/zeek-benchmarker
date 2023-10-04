@@ -5,14 +5,33 @@ Really using sqlite directly, but this allows to test it some.
 """
 import sqlite3
 
-from . import config
+import sqlalchemy as sa
+
+from . import config, models
+
+
+def get_engine(url: str) -> sa.Engine:
+    """
+    Get an SQLAlchemy engine:
+    """
+    if "://" not in url:
+        url = f"sqlite:///{url}"
+    return sa.create_engine(url)
 
 
 class Storage:
     def __init__(self, filename):
         self._filename = filename
+        self.Session = sa.orm.sessionmaker(get_engine(self._filename))
 
-    def store_job(self, *, job_id: str, kind: str, req_vals: dict[any, any]):
+    def store_job(
+        self,
+        *,
+        job_id: str,
+        kind: str,
+        machine_id: int,
+        req_vals: dict[str, any],
+    ):
         with sqlite3.connect(self._filename) as conn:
             c = conn.cursor()
             sql = """INSERT INTO jobs (
@@ -30,7 +49,8 @@ class Storage:
                          cirrus_build_id,
                          cirrus_pr,
                          github_check_suite_id,
-                         repo_version
+                         repo_version,
+                         machine_id
                     ) VALUES (
                         :id,
                         :kind,
@@ -46,12 +66,14 @@ class Storage:
                         :cirrus_build_id,
                         :cirrus_pr,
                         :github_check_suite_id,
-                        :repo_version
+                        :repo_version,
+                        :machine_id
                     )"""
             data = req_vals.copy()
             data["id"] = job_id
             data["sha"] = req_vals["commit"]
             data["kind"] = kind
+            data["machine_id"] = machine_id
             c.execute(sql, data)
 
     def store_zeek_result(
@@ -139,9 +161,50 @@ class Storage:
             }
             c.execute(sql, data)
 
+    def get_or_create_machine(self, m: models.Machine):
+        """
+        Find an entry in table machine with all the same attributes and
+        return it, or insert the new information and return that entry.
+
+        There might be a better way, but we do want to check that all
+        the columns are the same. The following is a bit more generic
+        in case we need that: https://stackoverflow.com/a/6078058
+        """
+        with self.Session() as session:
+            # Allow access to the returned objects after returning
+            # from this function.
+            session.expire_on_commit = False
+
+            query = session.query(models.Machine).where(
+                models.Machine.dmi_sys_vendor == m.dmi_sys_vendor,
+                models.Machine.dmi_product_uuid == m.dmi_product_uuid,
+                models.Machine.dmi_product_serial == m.dmi_product_serial,
+                models.Machine.dmi_board_asset_tag == m.dmi_board_asset_tag,
+                models.Machine.os == m.os,
+                models.Machine.architecture == m.architecture,
+                models.Machine.cpu_model == m.cpu_model,
+                models.Machine.mem_total_bytes == m.mem_total_bytes,
+            )
+
+            r = query.scalar()
+            if r:
+                return r
+
+            session.add(m)
+            session.commit()
+            session.expunge(m)
+            return m
+
+
+_storage = None
+
 
 def get() -> Storage:
     """
-    Get a Storage handle.
+    Get a singleton Storage handle.
     """
-    return Storage(config.get()["DATABASE_FILE"])
+    global _storage
+    if _storage is None:
+        _storage = Storage(config.get()["DATABASE_FILE"])
+
+    return _storage
