@@ -15,13 +15,13 @@ class SMTPHandler(logging.handlers.SMTPHandler):
         *,
         subject_prefix: str,
         toaddrs: list[str] | str,
-        cfg: config.Config = None,
+        cfg: config.Config | None = None,
     ):
         self.subject_prefix = subject_prefix
         cfg = cfg or config.get()
         super().__init__(
             toaddrs=toaddrs,
-            subject=None,  # dynamically generated
+            subject="",  # dynamically generated with getSubject()
             secure=(),  # always secure
             **cfg.smtp_settings._asdict(),
         )

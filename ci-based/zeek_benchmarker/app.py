@@ -1,6 +1,7 @@
 import hmac
 import os
 import time
+import typing
 from datetime import datetime, timedelta
 
 import redis
@@ -151,7 +152,7 @@ def parse_request(req):
     return req_vals
 
 
-def enqueue_job(job_func, req_vals: dict[str, any]):
+def enqueue_job(job_func, req_vals: dict[str, typing.Any]):
     """
     Enqueue the given request vals via redis rq for processing.
     """

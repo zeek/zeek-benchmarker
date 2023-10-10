@@ -4,8 +4,10 @@ Tiny storage abstraction.
 Really using sqlite directly, but this allows to test it some.
 """
 import sqlite3
+import typing
 
 import sqlalchemy as sa
+import zeek_benchmarker.tasks
 
 from . import config, models
 
@@ -30,7 +32,7 @@ class Storage:
         job_id: str,
         kind: str,
         machine_id: int,
-        req_vals: dict[str, any],
+        req_vals: dict[str, typing.Any],
     ):
         with sqlite3.connect(self._filename) as conn:
             c = conn.cursor()
@@ -79,9 +81,9 @@ class Storage:
     def store_zeek_result(
         self,
         *,
-        job: "zeek_benchmarker.tasks.ZeekJob",  # noqa: F821
-        test: "zeek_benchmarker.tasks.ZeekTest",  # noqa: F821
-        result: "zeek_benchmarker.tasks.ZeekTestResult",  # noqa: F821
+        job: "zeek_benchmarker.tasks.ZeekJob",
+        test: "zeek_benchmarker.tasks.ZeekTest",
+        result: "zeek_benchmarker.tasks.ZeekTestResult",
     ):
         """
         Store a results entry into the zeek_tests table.

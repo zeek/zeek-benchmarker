@@ -58,6 +58,7 @@ services:
       dockerfile: containers/rq.Dockerfile
     volumes:
       - ./config.yml:/app/config.yml
+      - ./config-tests.yml:/app/config-tests.yml
       - /var/run/docker.sock:/var/run/docker.sock
       - app_spool_data:/app/spool
 

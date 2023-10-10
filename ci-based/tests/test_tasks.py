@@ -143,3 +143,30 @@ class TestContainerRunner(unittest.TestCase):
         self.assertEqual("/run", run_kwargs["environment"]["RUN_PATH"])
         self.assertEqual("", run_kwargs["tmpfs"]["/mnt/data/tmpfs"])
         self.assertEqual("", run_kwargs["tmpfs"]["/run"])
+
+
+class TestZeekJob(unittest.TestCase):
+    def setUp(self):
+        self.job = zeek_benchmarker.tasks.ZeekJob(
+            build_url="test-url",
+            build_hash="test-hash",
+            original_branch="test-original-branch",
+            normalized_branch="test-normalized-branch",
+            commit="test-commit",
+            job_id="test-job-id",
+        )
+
+    @mock.patch("zeek_benchmarker.tasks.ZeekJob.run_zeek_test")
+    def test_process(self, run_zeek_test_mock):
+        # This uses the Config.get() singleton call to get access
+        # to the
+        # config.yml and confi-tests.yml stored in this repo.
+        # We use that for basic smoke testing that reading the
+        # config worked.
+        self.job._process()
+
+        tests = [c.args[0] for c in run_zeek_test_mock.call_args_list]
+        ids = [t.test_id for t in tests]
+        self.assertGreater(len(ids), 10)
+        self.assertIn("micro-table-ops-copy", ids)
+        self.assertIn("pcap-500k-syns", ids)

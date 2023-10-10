@@ -11,10 +11,11 @@ class SMTPSettings(typing.NamedTuple):
 
 
 class Config:
-    _config: "Config" = None
+    _config: typing.Optional["Config"] = None
 
     def __init__(self, d: dict[str, typing.Any]):
         self._d = d
+        self._tests_d: dict[str, typing.Any] | None = None
 
     @property
     def work_dir(self) -> str:
@@ -31,6 +32,14 @@ class Config:
     @property
     def run_count(self) -> int:
         return self._d["RUN_COUNT"]
+
+    @property
+    def zeek_tests(self) -> list[dict[str, typing.Any]]:
+        if self._tests_d is None:
+            with open(self["TESTS_FILE"]) as fp:
+                self._tests_d = yaml.safe_load(fp)
+
+        return self._tests_d["ZEEK_TESTS"]
 
     def __getitem__(self, k: str, default: typing.Any = None):
         """
@@ -51,7 +60,7 @@ class Config:
         )
 
 
-def get():
+def get() -> Config:
     """
     Lazily load the config.
     """
