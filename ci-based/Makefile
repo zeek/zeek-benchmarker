@@ -1,4 +1,4 @@
-all: zeek-benchmarker-zeek-runner
+all: zeek-benchmarker-zeek-runner docker-compose-build
 
 
 .PHONY:
@@ -6,8 +6,16 @@ zeek-benchmarker-zeek-runner:
 	docker build -f Dockerfile . -t $@
 
 .PHONY:
-up:
+docker-compose-build:
+	docker-compose build
+
+.PHONY:
+up: all
 	docker-compose up --force-recreate -d
+
+.PHONY:
+down:
+	docker-compose down
 
 .PHONY:
 tail-logs:
