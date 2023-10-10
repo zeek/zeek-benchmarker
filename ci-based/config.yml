@@ -33,7 +33,7 @@ CPU_SET:
 
 # Default number of times each test runs. Can be overridden by providing
 # a runs key within each test.
-RUN_COUNT: 1
+RUN_COUNT: 5
 
 # Max time for unpacking the build archives.
 TAR_TIMEOUT: 20
