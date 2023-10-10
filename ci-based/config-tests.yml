@@ -24,6 +24,12 @@ ZEEK_TESTS:
   - id: pcap-500k-syns
     pcap_file: 500k-syns.pcap
 
+  - id: pcap-quic-16-50mb
+    pcap_file: quic-16-50mb-transfers.pcap
+
+  - id: pcap-quic-12k
+    pcap_file: quic-12k-connections.pcap
+
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
