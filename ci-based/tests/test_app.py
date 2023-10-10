@@ -9,11 +9,13 @@ from zeek_benchmarker.models import Job, Machine
 from zeek_benchmarker.testing import TestWithDatabase
 
 
-def test_machine():
+def make_test_machine():
     return Machine(dmi_product_uuid="ec2abcdef-1234", os="Linux")
 
 
-@mock.patch("zeek_benchmarker.machine.get_machine", new_callable=lambda: test_machine)
+@mock.patch(
+    "zeek_benchmarker.machine.get_machine", new_callable=lambda: make_test_machine
+)
 @mock.patch("zeek_benchmarker.app.enqueue_job")
 class TestApi(TestWithDatabase):
     def setUp(self):
