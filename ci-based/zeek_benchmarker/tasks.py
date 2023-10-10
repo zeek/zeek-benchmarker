@@ -496,7 +496,7 @@ class ZeekJob(Job):
 
     def _process(self):
         cfg = config.get()
-        for t in cfg["ZEEK_TESTS"]:
+        for t in cfg.zeek_tests:
             zeek_test = ZeekTest.from_dict(cfg, t)
             self.run_zeek_test(zeek_test)
 
