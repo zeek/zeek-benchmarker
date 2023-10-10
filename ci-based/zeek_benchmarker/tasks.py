@@ -54,7 +54,7 @@ class ContainerRunner:
     the same service with different environment variables.
     """
 
-    _instance: "ContainerRunner" = None
+    _instance: typing.Optional["ContainerRunner"] = None
 
     @staticmethod
     def get() -> "ContainerRunner":
@@ -72,12 +72,11 @@ class ContainerRunner:
         image: str,
         command: str,
         env: Env,
-        seccomp_profile: dict[str, any],  # contents of the seccomp profile
+        seccomp_profile: dict[str, typing.Any],  # contents of the seccomp profile
         install_volume: str,
         install_target: str,
         test_data_volume: str,
         test_data_target: str = "/test_data",
-        timeout: float = None,
         cap_add: list[str] | None = None,
         network_disabled: bool = True,
     ):
@@ -254,29 +253,29 @@ class Job:
     job_id: str
 
     # build_hash rewritten
-    sha256: str = None
+    sha256: str | None = None
 
-    job_dir: pathlib.Path = None
+    job_dir: pathlib.Path | None = None
 
     # Absolute path to downloaded file.
-    build_path: str = None
+    build_path: str | None = None
     # Just the filename from build_path
-    build_filename: str = None
+    build_filename: str | None = None
 
     # This is the actual original branch
     # name as submitted through the API.
-    branch: str = None
+    branch: str | None = None
 
     # Extra information from the API
-    cirrus_repo_owner: str = None
-    cirrus_repo_name: str = None
-    cirrus_task_id: int = None
-    cirrus_task_name: str = None
-    cirrus_build_id: int = None
-    cirrus_pr: int = None
-    cirrus_pr_labels: str = None
-    github_check_suite_id: int = None
-    repo_version: str = None
+    cirrus_repo_owner: str | None = None
+    cirrus_repo_name: str | None = None
+    cirrus_task_id: int | None = None
+    cirrus_task_name: str | None = None
+    cirrus_build_id: int | None = None
+    cirrus_pr: int | None = None
+    cirrus_pr_labels: str | None = None
+    github_check_suite_id: int | None = None
+    repo_version: str | None = None
 
     @property
     def install_volume(self) -> str:
@@ -402,13 +401,13 @@ class ZeekTestResult(typing.NamedTuple):
 class ZeekTest(typing.NamedTuple):
     test_id: str
     runs: int
-    pcap: str = None
-    bench_command: str = None
-    bench_args: str = None
-    skip: bool = None
+    pcap: str | None = None
+    bench_command: str | None = None
+    bench_args: str | None = None
+    skip: bool | None = None
 
     @staticmethod
-    def from_dict(cfg: config.Config, d: dict[str, any]):
+    def from_dict(cfg: config.Config, d: dict[str, typing.Any]):
         return ZeekTest(
             test_id=d["id"],
             runs=d.get("runs", cfg.run_count),
