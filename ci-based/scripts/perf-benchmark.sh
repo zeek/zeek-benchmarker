@@ -2,6 +2,7 @@
 
 # Default options
 ZEEK_BUILD=""
+ZEEK_EXTRA_ARGS=""
 DATA_FILE=""
 MODE="intf"
 INTERFACE=""
@@ -133,6 +134,10 @@ while (("$#")); do
             PARSEABLE=1
             shift 1
             ;;
+        --zeek-extra-args)
+            ZEEK_EXTRA_ARGS="${2}"
+            shift 2
+            ;;
         -h | --help)
             usage
             ;;
@@ -176,6 +181,10 @@ fi
 
 if [ -n "${SEED_FILE}" ]; then
     ZEEK_ARGS="${ZEEK_ARGS} -G ${SEED_FILE}"
+fi
+
+if [ -n "${ZEEK_EXTRA_ARGS}" ]; then
+    ZEEK_ARGS="${ZEEK_ARGS} ${ZEEK_EXTRA_ARGS}"
 fi
 
 if [ "${MODE}" = "intf" ]; then

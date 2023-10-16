@@ -19,4 +19,5 @@ fi
 cp /test_data/${DATA_FILE_NAME} ${TMPFS_PATH}/${DATA_FILE_NAME}
 timeout --signal=SIGKILL 5m /benchmarker/scripts/perf-benchmark.sh --quiet --parseable --mode file \
     --seed ${ZEEKSEED} --build ${ZEEKBIN} --data-file ${TMPFS_PATH}/${DATA_FILE_NAME} \
-    --cpus ${ZEEKCPUS}
+    --cpus ${ZEEKCPUS} \
+    --zeek-extra-args "${PCAP_ARGS}"
