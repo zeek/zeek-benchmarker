@@ -9,6 +9,17 @@ ZEEK_TESTS:
   - id: pcap-zeek-testing-2009-m57-day11-18
     pcap_file: 2009-M57-day11-18.trace
 
+  - id: pcap-zeek-testing-geneve-vxlan-2009-m57-day11-18
+    pcap_file: geneve-vxlan-2009-M57-day11-18.trace
+
+  - id: pcap-bare-2009-m57-day11-18
+    pcap_file: 2009-M57-day11-18.trace
+    pcap_args: '-b'
+
+  - id: pcap-bare-geneve-vxlan-2009-m57-day11-18
+    pcap_file: geneve-vxlan-2009-M57-day11-18.trace
+    pcap_args: '-b'
+
   - id: pcap-50k-tcp-conns
     pcap_file: 50k-tcp-conns.pcap
 

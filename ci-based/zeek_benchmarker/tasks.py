@@ -402,6 +402,7 @@ class ZeekTest(typing.NamedTuple):
     test_id: str
     runs: int
     pcap: str | None = None
+    pcap_args: str | None = None
     bench_command: str | None = None
     bench_args: str | None = None
     skip: bool | None = None
@@ -414,6 +415,7 @@ class ZeekTest(typing.NamedTuple):
             bench_command=d.get("bench_command"),
             bench_args=d.get("bench_args"),
             pcap=d.get("pcap_file"),
+            pcap_args=d.get("pcap_args"),
             skip=d.get("skip", False),
         )
 
@@ -446,12 +448,17 @@ class ZeekJob(Job):
             "ZEEKSEED": "/benchmarker/random.seed",
         }
 
-        if t.bench_command and t.bench_args:
+        if t.bench_command:
             env["BENCH_COMMAND"] = t.bench_command
+
+        if t.bench_args:
             env["BENCH_ARGS"] = t.bench_args
 
         if t.pcap:
             env["DATA_FILE_NAME"] = t.pcap
+
+        if t.pcap_args:
+            env["PCAP_ARGS"] = t.pcap_args
 
         # TODO: Make configurable.
         with open("./zeek-seccomp.json", "rb") as fp:
