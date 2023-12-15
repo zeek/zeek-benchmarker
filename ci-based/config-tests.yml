@@ -50,6 +50,15 @@ ZEEK_TESTS:
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D test-all-policy microbenchmarks/misc/zeek-version.zeek
 
+  - id: micro-record-ops-connection-create
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/record-ops/connection-create.zeek
+
+  # Same as above, but not bare and load test-all-policy, too.
+  - id: micro-record-ops-connection-create-all-policy
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D test-all-policy microbenchmarks/record-ops/connection-create.zeek
+
   - id: micro-vector-ops-simple-value
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/vector-ops/simple-value.zeek
