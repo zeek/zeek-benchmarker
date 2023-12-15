@@ -17,6 +17,9 @@ It uses Docker for privilege separation when running the benchmark scripts.
    - zeek_install_data (volume): A volume holding the Zeek installation
    - app_spool_data (volume): Volume holding data while working on jobs.
 
+   As a shortcut, run ``make prepare-local-testing``. This will setup the
+   volumes pointing into ``./testing/volumes/<volume name>``.
+
 2. Create the necessary container images by running the following.
 
     sudo docker-compose build
