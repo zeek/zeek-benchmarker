@@ -58,6 +58,10 @@ ZEEK_TESTS:
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/vector-ops/complex-value.zeek
 
+  - id: micro-table-ops-create
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/table-ops/create.zeek
+
   - id: micro-table-ops-simple-key-value
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/table-ops/simple-key-value.zeek
