@@ -41,6 +41,13 @@ ZEEK_TESTS:
   - id: pcap-quic-12k
     pcap_file: quic-12k-connections.pcap
 
+  - id: pcap-websocket-traffic-mix
+    pcap_file: websocket-traffic-mix.pcap
+
+  - id: pcap-spicy-websocket-traffic-mix
+    pcap_file: websocket-traffic-mix.pcap
+    pcap_args: 'WebSocket::use_spicy_analyzer=T'
+
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
