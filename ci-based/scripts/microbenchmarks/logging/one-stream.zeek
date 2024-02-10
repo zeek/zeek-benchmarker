@@ -1,5 +1,7 @@
 @load base/frameworks/logging
 
+redef exit_only_after_terminate = T;
+
 redef enum Log::ID += { LOG };
 
 type Info: record {
@@ -8,7 +10,7 @@ type Info: record {
 	vec: vector of count;
 };
 
-global n = 1000000;
+global n = 3000000;
 global gmsg = "<msg>";
 global gvec = vector(1, 2, 3);
 
@@ -18,6 +20,8 @@ event do_log(n: count)
 
 	if (--n > 0)
 		event do_log(n);
+	else
+		terminate();
 	}
 
 event zeek_init()
