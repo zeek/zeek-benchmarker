@@ -90,6 +90,7 @@ services:
     build:
       context: .
       dockerfile: containers/redis.Dockerfile
+    restart: always
 
   test-http:
     # HTTP service for faster fetching local builds.
