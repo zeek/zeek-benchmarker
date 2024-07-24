@@ -48,6 +48,9 @@ ZEEK_TESTS:
     pcap_file: websocket-traffic-mix.pcap
     pcap_args: 'WebSocket::use_spicy_analyzer=T'
 
+  - id: pcap-smb-many-open-files
+    pcap_file: smb_many_open_files.pcap
+
   - id: micro-misc-zeek-version
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/misc/zeek-version.zeek
