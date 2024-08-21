@@ -35,6 +35,9 @@ ZEEK_TESTS:
   - id: pcap-500k-syns
     pcap_file: 500k-syns.pcap
 
+  - id: pcap-500k-syns-slow
+    pcap_file: 500k-syns-slow.pcap
+
   - id: pcap-quic-16-50mb
     pcap_file: quic-16-50mb-transfers.pcap
 
