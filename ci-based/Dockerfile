@@ -3,6 +3,7 @@ FROM ubuntu:22.04
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends -y \
     iproute2 \
     libmaxminddb0 \
+    libzmq5 \
     linux-tools-common \
     openssl \
     python3 \
