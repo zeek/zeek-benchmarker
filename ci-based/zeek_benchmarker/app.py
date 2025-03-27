@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 
 import redis
 import rq
-import zeek_benchmarker.machine
-import zeek_benchmarker.tasks
 from flask import Flask, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, Forbidden
+
+import zeek_benchmarker.machine
+import zeek_benchmarker.tasks
 from zeek_benchmarker import storage
 
 
@@ -29,9 +30,7 @@ def verify_hmac(request_path, timestamp, request_digest, build_hash):
     local_digest = hmac.new(hmac_key, hmac_msg, "sha256").hexdigest()
     if not hmac.compare_digest(local_digest, request_digest):
         current_app.logger.error(
-            "HMAC digest from request ({:s}) didn't match local digest ({:s})".format(
-                request_digest, local_digest
-            )
+            f"HMAC digest from request ({request_digest:s}) didn't match local digest ({local_digest:s})"
         )
         return False
 

@@ -3,6 +3,7 @@ Collect information about the running machine.
 
 Requires access to /sys for some of the DMI information
 """
+
 import logging
 import platform
 from pathlib import Path

@@ -5,6 +5,7 @@ import unittest
 
 import alembic.command
 import alembic.config
+
 from zeek_benchmarker import storage
 
 
