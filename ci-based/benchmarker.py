@@ -1,6 +1,7 @@
 """
 Entrypoint for flask run.
 """
+
 import zeek_benchmarker.app
 import zeek_benchmarker.config
 

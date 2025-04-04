@@ -1,6 +1,7 @@
 """
 Smoke integration for faster testing of various pieces
 """
+
 import sqlite3
 
 from zeek_benchmarker import storage, testing

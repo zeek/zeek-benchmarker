@@ -27,7 +27,7 @@ class BrokerMetricsPort(PluginBase.Plugin):
         for nn in self.nodes():
             if nn.type == "worker":
                 port = port + 1
-                print("Set BROKER_PORT to %d for worker" % port)
+                print(f"Set BROKER_PORT to {port} for worker")
                 nn.env_vars.setdefault("BROKER_METRICS_PORT", port)
 
         return True

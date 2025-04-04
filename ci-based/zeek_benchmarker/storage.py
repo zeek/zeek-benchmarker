@@ -3,10 +3,12 @@ Tiny storage abstraction.
 
 Really using sqlite directly, but this allows to test it some.
 """
+
 import sqlite3
 import typing
 
 import sqlalchemy as sa
+
 import zeek_benchmarker.tasks
 
 from . import config, models

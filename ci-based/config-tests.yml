@@ -147,3 +147,19 @@ ZEEK_TESTS:
   - id: micro-patterns-basic
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/patterns/basic.zeek
+
+  - id: micro-events-recursive
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/events/recursive.zeek
+
+  - id: micro-events-recursive-batch
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/events/recursive-batch.zeek
+
+  - id: micro-events-schedule
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/events/schedule.zeek
+
+  - id: micro-events-schedule-batch
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/events/schedule-batch.zeek
