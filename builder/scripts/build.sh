@@ -73,7 +73,6 @@ if [ ${SKIP_BUILD:-0} -ne 1 -a ${SKIP_ZEEK_DEPLOY:-0} -ne 1 ]; then
     echo
     echo "=== Copying zeekctl configuration ==="
     cp ${SCRIPT_PATH}/configs/zeekctl/*.cfg ${INSTALL_PATH}/etc
-    cp ${SCRIPT_PATH}/configs/zeekctl/broker_metrics_port.py ${INSTALL_PATH}/lib/zeek/python/zeekctl/plugins
 
     # We need a couple of network interfaces to run t-rex against, but we
     # unfortunately can't do this as part of the Dockerfile due to
