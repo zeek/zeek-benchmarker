@@ -61,7 +61,7 @@ if [ ${SKIP_BUILD:-0} -ne 1 ]; then
     echo
     echo "=== Building and installing ==="
     cd build
-    ninja -j 8 install || send_error_email "Build failed"
+    ninja install || send_error_email "Build failed"
     export PATH=${INSTALL_PATH}/bin:${PATH}
 fi
 
@@ -123,7 +123,8 @@ if [ ${SKIP_TREX:-0} -ne 1 ]; then
     echo
     echo "=== Starting t-rex ==="
     cd ${SCRIPT_PATH}/trex/latest
-    ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml --astf -f astf/sfr.py -m 4 -d ${RUN_TIME} --nc
+    (source ${SCRIPT_PATH}/trex/trex-venv/bin/activate && \
+     LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 ./t-rex-64 --cfg ${SCRIPT_PATH}/configs/trex_cfg.yaml --astf -f astf/sfr.py -m 4 -d ${RUN_TIME} --nc)
 
 fi
 
