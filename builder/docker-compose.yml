@@ -1,5 +1,3 @@
-version: '3.9'
-
 # These are created with
 # docker volume create --driver local \
 #    --opt type=none \
@@ -25,8 +23,8 @@ services:
       - zeek_logs:/benchmark/zeek_logs
     environment:
       - ZEEK_BRANCH=master
-      - ZEEK_RUN_LENGTH=3600
+      - ZEEK_RUN_LENGTH=86400
     working_dir: /benchmark
     command: /benchmark/scripts/build.sh
     ports:
-      - 127.0.0.1:4041:4041/tcp
+      - 9991-9999/tcp
