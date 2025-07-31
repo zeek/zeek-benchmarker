@@ -15,5 +15,5 @@ echo $SCRIPT_DIR
 cd $SCRIPT_DIR
 cd ..
 
-/usr/bin/docker-compose stop builder
-/usr/bin/docker-compose up --force-recreate -d builder
+/usr/bin/docker compose stop builder
+/usr/bin/docker compose up --force-recreate -d builder
