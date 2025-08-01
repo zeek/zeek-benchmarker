@@ -9,6 +9,7 @@ RUN apt-get install -y \
     bison \
     bzip2 \
     cmake \
+    cppzmq-dev \
     cron \
     curl \
     flex \
