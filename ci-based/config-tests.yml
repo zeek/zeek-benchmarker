@@ -163,3 +163,11 @@ ZEEK_TESTS:
   - id: micro-events-schedule-batch
     bench_command: /benchmarker/scripts/tiny-benchmark.sh
     bench_args: -D -b microbenchmarks/events/schedule-batch.zeek
+
+  - id: micro-intel-insert-50000
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/intel/insert.zeek Test::num_indicators=50000
+
+  - id: micro-intel-insert-500000
+    bench_command: /benchmarker/scripts/tiny-benchmark.sh
+    bench_args: -D -b microbenchmarks/intel/insert.zeek Test::num_indicators=500000
