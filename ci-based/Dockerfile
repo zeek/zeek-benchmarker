@@ -2,8 +2,9 @@ FROM ubuntu:24.04
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends -y \
     iproute2 \
-    libmaxminddb0 \
     libhiredis1.1.0 \
+    libmaxminddb0 \
+    libnode109 \
     libzmq5 \
     linux-tools-common \
     openssl \
