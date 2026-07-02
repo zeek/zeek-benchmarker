@@ -4,8 +4,7 @@ HMAC_KEY: unset
 
 # URL prefixes  we allow fetching build artifacts from
 ALLOWED_BUILD_URLS:
-  - https://api.cirrus-ci.com/v1/artifact/build
-  - https://api.cirrus-ci.com/v1/artifact/task
+  - https://output.circle-artifacts.com/output/job
   - http://127.0.0.1:8000/
   - http://localhost:8000/
   - http://test-http:8000/
