@@ -297,7 +297,7 @@ class Job:
         """
         How many components to strip when running tar on build.tgz
         """
-        return 2
+        return 1
 
     def fetch_build_url(self, build_path: pathlib.Path):
         """
@@ -444,7 +444,8 @@ class ZeekJob(Job):
         env = {
             "BENCH_TEST_ID": t.test_id,
             "ZEEKCPUS": cfg.zeek_cpus,
-            "ZEEKBIN": "/zeek/install/bin/zeek",
+            "ZEEKBIN": "/root/project/install/bin/zeek",
+            "ZEEKCONFIG": "/root/project/install/bin/zeek-config",
             "ZEEKSEED": "/benchmarker/random.seed",
         }
 
@@ -475,7 +476,7 @@ class ZeekJob(Job):
                     env=env,
                     seccomp_profile=seccomp_profile,
                     install_volume=self.install_volume,
-                    install_target="/zeek/install",
+                    install_target="/root/project/install",
                     test_data_volume="test_data",
                 )
 

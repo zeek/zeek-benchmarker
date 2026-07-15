@@ -9,7 +9,7 @@ KILL_TIMEOUT=${KILL_TIMEOUT:-300}
 
 # Add path where tiny-benchmark.sh is located to ZEEKPATH
 # so that microbenchmark is in the path.
-orig_zeekpath=$($ZEEKBIN --help 2>&1 | sed -n -r 's,.*\$ZEEKPATH.*file search path \((.+)\).*,\1,p')
+orig_zeekpath=$(${ZEEKCONFIG} --zeekpath)
 export ZEEKPATH="${orig_zeekpath}:$(dirname $0)"
 
 exec timeout --signal=SIGKILL ${KILL_TIMEOUT} \
